@@ -735,7 +735,7 @@ describe("buildBrowseGroups", () => {
     });
     await Promise.resolve();
 
-    expect(browseTo).toHaveBeenCalledWith("Downloads");
+    expect(browseTo).toHaveBeenCalledWith("Downloads", "/Users/test/Downloads");
     expect(actionSettled).toBe(false);
 
     finishNavigation?.();

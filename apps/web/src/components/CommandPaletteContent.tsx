@@ -17,6 +17,7 @@ type CommandPaletteContentProps = Omit<ComponentProps<typeof Command>, "children
    */
   readonly panelSize?: "list" | "tall-list" | "fill";
   readonly showBackHint?: boolean;
+  readonly showCompletionHint?: boolean;
   readonly testId?: string;
 };
 
@@ -34,6 +35,7 @@ export function CommandPaletteContent({
   inputProps,
   panelSize = "list",
   showBackHint,
+  showCompletionHint,
   testId,
   ...commandProps
 }: CommandPaletteContentProps) {
@@ -85,6 +87,12 @@ export function CommandPaletteContent({
               <KbdGroup>
                 <Kbd>Backspace</Kbd>
                 <span>Back</span>
+              </KbdGroup>
+            ) : null}
+            {showCompletionHint ? (
+              <KbdGroup>
+                <Kbd>Tab</Kbd>
+                <span>Complete path</span>
               </KbdGroup>
             ) : null}
             <KbdGroup>
