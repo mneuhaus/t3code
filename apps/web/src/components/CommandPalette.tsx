@@ -116,7 +116,6 @@ import {
 import { useProjects, useServerConfigs, useThreadShells, waitForProject } from "../state/entities";
 import { resolveThreadActionProjectRef, startNewThreadFromContext } from "../lib/chatThreadActions";
 import {
-  appendBrowsePathSegment,
   ensureBrowseDirectoryPath,
   findProjectByPath,
   getBrowseDirectoryPath,
@@ -713,8 +712,12 @@ function OpenCommandPaletteDialog(props: {
     query,
     browseEnvironmentPlatform,
     browseEnvironmentId !== null && !isRemoteProjectRepositoryStep && newProjectFlow === null,
+    isRemoteProjectCloneFlow ? "" : (currentView?.initialQuery ?? ""),
   );
   const isBrowsing = browsePath.isBrowsing;
+  const browseInputPath = isBrowsing
+    ? `${browsePath.directoryPath}${browsePath.filterQuery}`
+    : query.trim();
   const browseDirectoryPath = browsePath.directoryPath;
   const paletteMode = getCommandPaletteMode({ currentView, isBrowsing });
   const getAddProjectInitialQueryForEnvironment = (environmentId: EnvironmentId | null): string => {
@@ -750,6 +753,14 @@ function OpenCommandPaletteDialog(props: {
     environmentId && currentProjectEnvironmentId === environmentId ? currentProjectCwd : null;
   const relativePathNeedsActiveProject =
     isExplicitRelativeProjectPath(query.trim()) && currentProjectCwdForBrowse === null;
+  // A pinned clone folder does not exist yet, so browse its parent instead of searching for it.
+  const browsePartialPath =
+    pinnedCloneDirectoryName.length > 0 &&
+    (isWindowsPlatform(browseEnvironmentPlatform)
+      ? browsePath.filterQuery.toLowerCase() === pinnedCloneDirectoryName.toLowerCase()
+      : browsePath.filterQuery === pinnedCloneDirectoryName)
+      ? browsePath.directoryPath
+      : browseInputPath;
   const browseAccess = useFilesystemReadAccess(browseEnvironmentId);
   const hasBrowseTarget =
     isBrowsing &&
@@ -761,7 +772,8 @@ function OpenCommandPaletteDialog(props: {
       ? filesystemEnvironment.browse({
           environmentId: browseEnvironmentId,
           input: {
-            partialPath: browsePath.directoryPath,
+            partialPath: browsePartialPath,
+            fuzzy: true,
             ...(currentProjectCwdForBrowse ? { cwd: currentProjectCwdForBrowse } : {}),
           },
         })
@@ -804,6 +816,7 @@ function OpenCommandPaletteDialog(props: {
       environmentId,
       input: {
         partialPath,
+        fuzzy: true,
         ...(cwd ? { cwd } : {}),
       },
     });
@@ -2088,15 +2101,15 @@ function OpenCommandPaletteDialog(props: {
     }
   }
 
-  const browseTo = async (name: string): Promise<void> => {
+  const browseTo = async (name: string, fullPath: string): Promise<void> => {
     const nextQuery = pinnedCloneDirectoryName
       ? getCloneDestinationBrowsePath({
-          browseDirectoryPath: browsePath.directoryPath,
+          browseDirectoryPath: getBrowseDirectoryPath(fullPath),
           selectedDirectoryName: name,
           cloneDirectoryName: pinnedCloneDirectoryName,
           caseSensitive: !isWindowsPlatform(browseEnvironmentPlatform),
         })
-      : appendBrowsePathSegment(query, name);
+      : ensureBrowseDirectoryPath(fullPath);
     await browseNavigation.run(
       () => prefetchBrowsePath(getBrowseDirectoryPath(nextQuery)),
       () => {
@@ -2125,8 +2138,8 @@ function OpenCommandPaletteDialog(props: {
   };
 
   const resolvedAddProjectPath = hasTrailingPathSeparator(query)
-    ? (browseResult?.parentPath ?? query.trim())
-    : (exactBrowseEntry?.fullPath ?? query.trim());
+    ? (browseResult?.parentPath ?? browseInputPath)
+    : (exactBrowseEntry?.fullPath ?? browseInputPath);
 
   const canBrowseUp = !relativePathNeedsActiveProject && browsePath.canBrowseUp;
 
@@ -2440,6 +2453,25 @@ function OpenCommandPaletteDialog(props: {
       return;
     }
 
+    if (
+      isBrowsing &&
+      event.key === "Tab" &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey
+    ) {
+      const entry =
+        visibleBrowseEntries.find(
+          (candidate) => `browse:${candidate.fullPath}` === highlightedItemValue,
+        ) ?? visibleBrowseEntries[0];
+      if (entry && !isBrowsePending) {
+        event.preventDefault();
+        void browseTo(entry.name, entry.fullPath);
+        return;
+      }
+    }
+
     const shouldSubmitBrowsePath =
       canSubmitBrowsePath &&
       event.key === "Enter" &&
@@ -2701,6 +2733,7 @@ function OpenCommandPaletteDialog(props: {
       aria-label="Command palette"
       autoHighlight={autoHighlightsFirstRow ? "always" : false}
       footerActionLabel={footerActionLabel}
+      showCompletionHint={isBrowsing}
       footerTrailing={footerTrailing}
       inputAccessory={inputAccessory}
       inputProps={{
