@@ -754,6 +754,24 @@ describe("sidebar drag projection", () => {
     expect(strategy({ ...args, index: 4 })?.y).toBe(-42);
   });
 
+  it("sizes a card with nothing to measure at the compact height in compact density", () => {
+    const items = [
+      pinnedHeader,
+      divider,
+      marker("active-placeholder"),
+      settledHeader,
+      thread("s", "settled"),
+      thread("t", "settled"),
+    ];
+    const settledHeaderShift = (compactCards: boolean) =>
+      preview(
+        { items, settledOrder: [], settledExpanded: true, compactCards },
+        "s",
+        sidebarMarkerId("active-placeholder"),
+      ).get(sidebarMarkerId("settled-header"))?.y ?? 0;
+    expect(settledHeaderShift(false) - settledHeaderShift(true)).toBe(82 - 54);
+  });
+
   it("keeps the route row visible after a settled drop pushes it beyond the page", () => {
     const items = [
       pinnedHeader,
