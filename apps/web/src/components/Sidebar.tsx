@@ -707,11 +707,17 @@ function SortableSidebarMarker(props: {
 
 // Empty targets stay measurable without reserving space at rest. The sorting
 // strategy opens their hint space during a drag.
+// Compact density also tightens the corners of every row surface in the list.
+function sidebarRowRadiusClassName(compact: boolean): string {
+  return compact ? "rounded-[.25rem]" : "rounded-md";
+}
+
 function SidebarSectionPlaceholder(props: {
   marker: "active-placeholder" | "settled-placeholder";
   label: string;
   showHint: boolean;
   isDropTarget: boolean;
+  compact: boolean;
 }) {
   return (
     <SortableSidebarMarker
@@ -722,7 +728,8 @@ function SidebarSectionPlaceholder(props: {
       {props.showHint ? (
         <div
           className={cn(
-            "absolute inset-x-0 top-0 flex h-9 items-center justify-center rounded-md border border-dashed border-sidebar-foreground/25 text-xs text-sidebar-foreground/80",
+            "absolute inset-x-0 top-0 flex h-9 items-center justify-center border border-dashed border-sidebar-foreground/25 text-xs text-sidebar-foreground/80",
+            sidebarRowRadiusClassName(props.compact),
             props.isDropTarget && "border-primary/40 bg-primary/5 text-primary",
           )}
         >
@@ -882,7 +889,8 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
         aria-current={accessibility.current}
         data-testid="sidebar-draft-row"
         className={cn(
-          "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left text-sidebar-foreground outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+          "group/sidebar-row relative w-full cursor-pointer overflow-hidden text-left text-sidebar-foreground outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+          sidebarRowRadiusClassName(props.compact),
           props.isActive ? "bg-sidebar-row-active" : draftSurfaceClassName,
         )}
         onClick={handleActivate}
@@ -1109,7 +1117,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   thread: SidebarThreadSummary;
   variant: "card" | "slim";
   // Compact density: cards fold the project label into the meta line, so
-  // they take two lines instead of three. Slim rows are unaffected.
+  // they take two lines instead of three. Slim rows keep their layout; both
+  // get the tighter corners.
   compact: boolean;
   // Slim rows are either settled (action: un-settle) or merely quiet
   // (seen Ready threads — action: settle).
@@ -1555,7 +1564,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   // a useful hierarchy nor a reliable hover cue. Status now lives in the row
   // content; surface is reserved for interaction (hover, multi-select, route).
   const rowSurfaceClassName = cn(
-    "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+    "group/sidebar-row relative w-full cursor-pointer overflow-hidden text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+    sidebarRowRadiusClassName(props.compact),
     variantAction === "unsettle" && "[&:not(:hover):not(:focus-within)_*]:text-secondary-label/70",
     props.isActive
       ? "bg-sidebar-row-active text-sidebar-foreground"
@@ -2198,6 +2208,7 @@ const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props: {
   providerEntryByInstanceId: ReadonlyMap<string, ProviderInstanceEntry>;
   isHighlighted: boolean;
   isRouteActive: boolean;
+  compact: boolean;
   resultId: string;
   searchMatch: EnvironmentThreadSearchMatch | null;
   searchQuery: string;
@@ -2293,7 +2304,8 @@ const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props: {
               onMouseMove={props.onHighlight}
               onClick={props.onSelect}
               className={cn(
-                "flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1 text-left text-sm outline-none",
+                "flex min-h-9 w-full cursor-pointer items-center gap-2.5 px-2.5 py-1 text-left text-sm outline-none",
+                sidebarRowRadiusClassName(props.compact),
                 props.isHighlighted || props.isRouteActive
                   ? "bg-sidebar-row-active text-sidebar-foreground"
                   : "text-sidebar-muted-foreground/75 hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
@@ -4923,6 +4935,7 @@ export default function Sidebar() {
                       <SidebarSearchResultRow
                         key={threadKey}
                         thread={thread}
+                        compact={compactThreadCards}
                         project={
                           projectByKey.get(`${thread.environmentId}:${thread.projectId}`) ?? null
                         }
@@ -5186,6 +5199,7 @@ export default function Sidebar() {
                               <SidebarSectionPlaceholder
                                 key="active-placeholder"
                                 marker="active-placeholder"
+                                compact={compactThreadCards}
                                 label="Active"
                                 showHint={
                                   from !== null &&
@@ -5262,6 +5276,7 @@ export default function Sidebar() {
                               <SidebarSectionPlaceholder
                                 key="settled-placeholder"
                                 marker="settled-placeholder"
+                                compact={compactThreadCards}
                                 label="Settled"
                                 showHint={
                                   from !== null &&
@@ -5284,7 +5299,10 @@ export default function Sidebar() {
                         <button
                           type="button"
                           onClick={showMoreSettled}
-                          className="flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm text-sidebar-muted-foreground/55 hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+                          className={cn(
+                            "flex h-9 w-full cursor-pointer items-center gap-2.5 px-2.5 text-left text-sm text-sidebar-muted-foreground/55 hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
+                            sidebarRowRadiusClassName(compactThreadCards),
+                          )}
                         >
                           <PlusIcon aria-hidden className="size-4 shrink-0" />
                           Show {Math.min(hiddenSettledCount, SETTLED_TAIL_PAGE_COUNT)} more
