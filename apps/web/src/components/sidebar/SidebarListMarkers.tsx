@@ -8,7 +8,7 @@ import {
   sidebarMarkerId,
   type SidebarListMarker,
 } from "../Sidebar.logic";
-import { SIDEBAR_SORTABLE_DRAG_DISABLED } from "./SidebarThreadRow";
+import { SIDEBAR_SORTABLE_DRAG_DISABLED, sidebarRowRadiusClassName } from "./SidebarThreadRow";
 
 function SortableSidebarMarker(props: {
   marker: SidebarListMarker;
@@ -43,6 +43,7 @@ export function SidebarSectionPlaceholder(props: {
   label: string;
   showHint: boolean;
   isDropTarget: boolean;
+  compact: boolean;
 }) {
   return (
     <SortableSidebarMarker
@@ -53,7 +54,8 @@ export function SidebarSectionPlaceholder(props: {
       {props.showHint ? (
         <div
           className={cn(
-            "absolute inset-x-0 top-0 flex h-9 items-center justify-center rounded-md border border-dashed border-sidebar-foreground/25 text-xs text-sidebar-foreground/80",
+            "absolute inset-x-0 top-0 flex h-9 items-center justify-center border border-dashed border-sidebar-foreground/25 text-xs text-sidebar-foreground/80",
+            sidebarRowRadiusClassName(props.compact),
             props.isDropTarget && "border-primary/40 bg-primary/5 text-primary",
           )}
         >

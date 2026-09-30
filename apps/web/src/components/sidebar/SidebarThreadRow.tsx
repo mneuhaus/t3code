@@ -429,6 +429,11 @@ type SortableThreadRowBag = Pick<
 export const draftSurfaceClassName = "bg-warning/4 hover:bg-warning/8";
 export const draftPenClassName = "size-3 shrink-0 text-warning-foreground";
 
+// Compact density also tightens the corners of every row surface in the list.
+export function sidebarRowRadiusClassName(compact: boolean): string {
+  return compact ? "rounded-[.25rem]" : "rounded-md";
+}
+
 // useSortable memoizes on its `disabled` object, so a fresh one per render
 // re-renders every row and marker on each sidebar update.
 export const SIDEBAR_SORTABLE_DRAG_DISABLED = { draggable: true } as const;
@@ -512,7 +517,8 @@ type SidebarThreadRowProps = {
   thread: SidebarThreadSummary;
   variant: "card" | "slim";
   // Compact density: cards fold the project label into the meta line, so
-  // they take two lines instead of three. Slim rows are unaffected.
+  // they take two lines instead of three. Slim rows keep their layout; both
+  // get the tighter corners.
   compact: boolean;
   variantAction: SidebarSweepAction;
   settlementSupported: boolean;
@@ -894,7 +900,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   };
 
   const rowSurfaceClassName = cn(
-    "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+    "group/sidebar-row relative w-full cursor-pointer overflow-hidden text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+    sidebarRowRadiusClassName(props.compact),
     variantAction === "unsettle" && "[&:not(:hover):not(:focus-within)_*]:text-secondary-label/70",
     props.isActive
       ? "bg-sidebar-row-active text-sidebar-foreground"
@@ -1553,6 +1560,7 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
   providerEntryByInstanceId: ReadonlyMap<string, SidebarProviderEntry>;
   isHighlighted: boolean;
   isRouteActive: boolean;
+  compact: boolean;
   resultId: string;
   searchMatch: EnvironmentThreadSearchMatch | null;
   searchQuery: string;
@@ -1643,7 +1651,8 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
               onMouseMove={props.onHighlight}
               onClick={props.onSelect}
               className={cn(
-                "group/sidebar-row group/v2-row flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1 text-left text-sm outline-none",
+                "group/sidebar-row group/v2-row flex min-h-9 w-full cursor-pointer items-center gap-2.5 px-2.5 py-1 text-left text-sm outline-none",
+                sidebarRowRadiusClassName(props.compact),
                 props.isHighlighted || props.isRouteActive
                   ? "bg-sidebar-row-active text-sidebar-foreground"
                   : "text-sidebar-muted-foreground/75 hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
