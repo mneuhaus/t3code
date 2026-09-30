@@ -81,6 +81,11 @@ export const SidebarThreadPreviewCount = Schema.Int.check(
 );
 export type SidebarThreadPreviewCount = typeof SidebarThreadPreviewCount.Type;
 const DEFAULT_SIDEBAR_THREAD_PREVIEW_COUNT: SidebarThreadPreviewCount = 6;
+// Compact keeps every thread-card detail but folds the project label into the
+// meta line, so cards take two lines instead of three.
+export const SidebarThreadDensity = Schema.Literals(["comfortable", "compact"]);
+export type SidebarThreadDensity = typeof SidebarThreadDensity.Type;
+const DEFAULT_SIDEBAR_THREAD_DENSITY: SidebarThreadDensity = "comfortable";
 export const MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS = 1;
 export const MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS = 90;
 export const SidebarAutoSettleAfterDays = Schema.Number.check(
@@ -486,6 +491,9 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   sidebarThreadPreviewCount: SidebarThreadPreviewCount.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_SIDEBAR_THREAD_PREVIEW_COUNT)),
+  ),
+  sidebarThreadDensity: SidebarThreadDensity.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_SIDEBAR_THREAD_DENSITY)),
   ),
   timestampFormat: TimestampFormat.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_TIMESTAMP_FORMAT)),
@@ -1895,6 +1903,7 @@ export const ClientSettingsPatch = Schema.Struct({
   sidebarProjectSortOrder: Schema.optionalKey(SidebarProjectSortOrder),
   sidebarThreadSortOrder: Schema.optionalKey(SidebarThreadSortOrder),
   sidebarThreadPreviewCount: Schema.optionalKey(SidebarThreadPreviewCount),
+  sidebarThreadDensity: Schema.optionalKey(SidebarThreadDensity),
   timestampFormat: Schema.optionalKey(TimestampFormat),
   snapShotEnabled: Schema.optionalKey(Schema.Boolean),
   snapShotIncludeAccessibility: Schema.optionalKey(Schema.Boolean),

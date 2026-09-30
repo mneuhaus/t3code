@@ -230,6 +230,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["wide full width column layout messages composer monitor"],
   },
   {
+    id: "compact-sidebar",
+    title: "Compact sidebar",
+    to: "/settings/appearance",
+    searchTerms: ["density dense two lines thread rows cards smaller more threads"],
+  },
+  {
     id: "panel-animations",
     title: "Panel animations",
     to: "/settings/appearance",
