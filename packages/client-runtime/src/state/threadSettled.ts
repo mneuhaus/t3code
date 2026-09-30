@@ -214,7 +214,13 @@ const HOUR_MS = 60 * 60 * 1_000;
 const EVENING_HOUR = 18;
 const MORNING_HOUR = 9;
 
-export type SnoozePresetId = "hour" | "three-hours" | "evening" | "tomorrow" | "next-week";
+export type SnoozePresetId =
+  | "hour"
+  | "three-hours"
+  | "evening"
+  | "tomorrow"
+  | "next-week"
+  | "month";
 
 export interface SnoozePreset {
   readonly id: SnoozePresetId;
@@ -245,12 +251,25 @@ function addSnoozeDays(base: Date, days: number): Date {
   return next;
 }
 
+// Same day one month later, clamped to that month's last day: Jan 31 wakes
+// on Feb 28 (29 in leap years) instead of overflowing into March.
+function addSnoozeMonth(base: Date): Date {
+  const next = new Date(base);
+  const day = next.getDate();
+  next.setDate(1);
+  next.setMonth(next.getMonth() + 1);
+  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+  next.setDate(Math.min(day, lastDay));
+  return next;
+}
+
 /**
  * Shared "snooze until" choices for every client. "This evening" only
  * appears while it is meaningfully before evening; after that the calendar
  * choices start at "Tomorrow". Calendar presets that land on the same
  * instant collapse: on Sundays "Tomorrow" and "Next week" are both Monday
- * morning, so only "Tomorrow" is offered.
+ * morning, so only "Tomorrow" is offered. "In 1 month" is the same day one
+ * month out, so it never collides with the others.
  */
 export function resolveSnoozePresets(now: Date): ReadonlyArray<SnoozePreset> {
   const inAnHour = DateTime.toDate(DateTime.makeUnsafe(now.getTime() + HOUR_MS));
@@ -298,6 +317,14 @@ export function resolveSnoozePresets(now: Date): ReadonlyArray<SnoozePreset> {
       snoozedUntil: nextWeek.toISOString(),
     });
   }
+
+  const inAMonth = snoozeAtHour(addSnoozeMonth(now), MORNING_HOUR);
+  presets.push({
+    id: "month",
+    label: "In 1 month",
+    whenLabel: `${inAMonth.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${snoozeTimeOfDayLabel(inAMonth)}`,
+    snoozedUntil: inAMonth.toISOString(),
+  });
 
   return presets;
 }
