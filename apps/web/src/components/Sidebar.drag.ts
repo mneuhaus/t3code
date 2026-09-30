@@ -100,6 +100,9 @@ export function createSidebarSortingStrategy(input: {
   snoozedThreadCount?: number;
   cardHeight?: number;
   slimHeight?: number;
+  /** Two-line cards (compact density): the resting card height that sizes
+   * unmeasured cards and derives the zoom scale from measured ones. */
+  compactCards?: boolean;
   boundaryLabelHeight?: number;
 }): SortingStrategy {
   if (input.enabled === false) return () => stationary;
@@ -137,9 +140,13 @@ export function createSidebarSortingStrategy(input: {
       else slimHeight ??= rects[index]?.height;
       if (item.key !== active.key) groups[item.section].push(item);
     }
+    // Cards are 4.875rem (compact: 3.125rem) + 0.25rem padding; slim rows are h-9.
+    const restingCardHeight = input.compactCards ? 54 : 82;
     const scale =
-      slimHeight !== undefined ? slimHeight / 36 : (headerScale ?? (cardHeight ?? 82) / 82);
-    cardHeight ??= 82 * scale;
+      slimHeight !== undefined
+        ? slimHeight / 36
+        : (headerScale ?? (cardHeight ?? restingCardHeight) / restingCardHeight);
+    cardHeight ??= restingCardHeight * scale;
     slimHeight ??= 36 * scale;
     const labelHeight = (input.boundaryLabelHeight ?? 0) * scale;
     const group = groups[target.section];
