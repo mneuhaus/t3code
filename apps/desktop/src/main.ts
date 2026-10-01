@@ -23,6 +23,7 @@ import type { RemoteT3RunnerOptions } from "@t3tools/ssh/tunnel";
 import serverPackageJson from "../../server/package.json" with { type: "json" };
 
 import * as DesktopIpc from "./ipc/DesktopIpc.ts";
+import * as DesktopFlavor from "./app/DesktopFlavor.ts";
 import * as ElectronApp from "./electron/ElectronApp.ts";
 import * as ElectronDialog from "./electron/ElectronDialog.ts";
 import * as ElectronMenu from "./electron/ElectronMenu.ts";
@@ -90,12 +91,14 @@ const layerDesktopEnvironment = Layer.unwrap(
     );
     const platform = yield* HostProcessPlatform;
     const processArch = yield* HostProcessArchitecture;
+    const flavor = DesktopFlavor.readPackagedDesktopFlavor(metadata);
     return DesktopEnvironment.layer({
       dirname: __dirname,
       homeDirectory: NodeOS.homedir(),
       platform,
       processArch,
       ...metadata,
+      flavor: Option.getOrUndefined(flavor),
     });
   }),
 );
@@ -223,8 +226,10 @@ const layerDesktopApplication = Layer.mergeAll(
 );
 
 // Clerk resolves userData before Electron is ready, so it gets the synchronous FileSystem.
+// A flavored build first checks that no other server owns that shared data.
 const layerDesktopClerk = DesktopClerk.layer.pipe(
   Layer.provide(DesktopPreReadyFileSystem.layer),
+  Layer.provide(DesktopFlavor.layerSharedDataGuard.pipe(Layer.provide(ElectronDialog.layer))),
   Layer.provideMerge(ElectronShell.layer),
   Layer.provideMerge(layerDesktopEnvironment),
   Layer.provideMerge(NodeServices.layer),
