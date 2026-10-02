@@ -182,6 +182,27 @@ describe("DesktopEnvironment", () => {
     }),
   );
 
+  it.effect("shares the release install's data, renaming only the branding", () =>
+    Effect.gen(function* () {
+      const release = yield* makeEnvironment({ isPackaged: true });
+      const flavored = yield* makeEnvironment({
+        isPackaged: true,
+        flavor: { id: "marc", label: "Marc" },
+      });
+
+      // The Electron profile comes from DesktopUserData, which never sees the flavor.
+      assert.equal(flavored.baseDir, release.baseDir);
+      assert.equal(flavored.stateDir, release.stateDir);
+      assert.equal(flavored.appDataDirectory, release.appDataDirectory);
+      assert.deepEqual(flavored.branding, {
+        baseName: "T3 Code",
+        stageLabel: "Dev",
+        displayName: "T3 Code (Marc)",
+      });
+      assert.equal(release.branding.displayName, "T3 Code (Alpha)");
+    }),
+  );
+
   it.effect("resolves picker defaults without nullish sentinels", () =>
     Effect.gen(function* () {
       const environment = yield* makeEnvironment();

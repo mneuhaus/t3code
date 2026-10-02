@@ -19,6 +19,7 @@ import * as DesktopApplicationMenu from "../window/DesktopApplicationMenu.ts";
 import * as DesktopWindow from "../window/DesktopWindow.ts";
 import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
+import * as DesktopFlavor from "./DesktopFlavor.ts";
 import * as DesktopLifecycle from "./DesktopLifecycle.ts";
 import * as DesktopLinuxUrlHandler from "./DesktopLinuxUrlHandler.ts";
 import * as DesktopObservability from "./DesktopObservability.ts";
@@ -67,8 +68,11 @@ export class DesktopDevelopmentBackendPortRequiredError extends Schema.TaggedErr
 const { logInfo: logBootstrapInfo, logWarning: logBootstrapWarning } =
   DesktopObservability.makeComponentLogger("desktop-bootstrap");
 
-const { logInfo: logStartupInfo, logError: logStartupError } =
-  DesktopObservability.makeComponentLogger("desktop-startup");
+const {
+  logInfo: logStartupInfo,
+  logWarning: logStartupWarning,
+  logError: logStartupError,
+} = DesktopObservability.makeComponentLogger("desktop-startup");
 
 const resolveDesktopBackendPort = Effect.fn("resolveDesktopBackendPort")(function* (
   configuredPort: Option.Option<number>,
@@ -307,6 +311,24 @@ const startup = Effect.gen(function* () {
     });
   }
 
+  // Checked before ready: once ready, Chromium has opened the shared Electron
+  // profile. The read is synchronous and showErrorBox is safe before ready.
+  if (environment.flavor) {
+    const ownerPid = DesktopFlavor.findLiveServerOwner(environment.stateDir);
+    if (ownerPid !== null) {
+      yield* logStartupWarning("another T3 Code server owns the shared data; not starting", {
+        pid: ownerPid,
+        stateDir: environment.stateDir,
+      });
+      const electronDialog = yield* ElectronDialog.ElectronDialog;
+      yield* electronDialog.showErrorBox(
+        `${environment.displayName} cannot start`,
+        `Another T3 Code app (process ${ownerPid}) is using ${environment.stateDir}. Quit it first, then open ${environment.displayName} again.`,
+      );
+      yield* electronApp.quit;
+      return yield* Effect.interrupt;
+    }
+  }
   yield* appIdentity.configure;
   yield* lifecycle.register;
   yield* clerk.configure;
