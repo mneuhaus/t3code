@@ -545,6 +545,9 @@ export function useSettingsRestore(onRestored?: () => void) {
         ? ["Diff colors"]
         : []),
       ...(settings.chatWidth !== DEFAULT_UNIFIED_SETTINGS.chatWidth ? ["Chat width"] : []),
+      ...(settings.sidebarThreadDensity !== DEFAULT_UNIFIED_SETTINGS.sidebarThreadDensity
+        ? ["Compact sidebar"]
+        : []),
       ...(settings.panelAnimationDurationMs !== DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs
         ? ["Panel animations"]
         : []),
@@ -710,6 +713,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.snoozeLimitedThreads,
       settings.sidebarProjectGroupingMode,
       settings.sidebarProjectSortOrder,
+      settings.sidebarThreadDensity,
       settings.sidebarWorkingShelfEnabled,
       settings.sidebarThreadPreviewCount,
       settings.showSkillsInSlashMenu,
@@ -789,6 +793,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       appearanceContrast: DEFAULT_UNIFIED_SETTINGS.appearanceContrast,
       diffColorScheme: DEFAULT_UNIFIED_SETTINGS.diffColorScheme,
       chatWidth: DEFAULT_UNIFIED_SETTINGS.chatWidth,
+      sidebarThreadDensity: DEFAULT_UNIFIED_SETTINGS.sidebarThreadDensity,
       timestampFormat: DEFAULT_UNIFIED_SETTINGS.timestampFormat,
       notificationMode: DEFAULT_UNIFIED_SETTINGS.notificationMode,
       inAppNotificationsEnabled: DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled,
@@ -1452,6 +1457,20 @@ export function AppearanceSettingsPanel() {
                 </SelectPopup>
               </Select>
             </div>
+          }
+        />
+
+        <SettingsRow
+          {...searchableSetting("compact-sidebar")}
+          description="Show sidebar threads on two lines instead of three, so more of them fit."
+          control={
+            <Switch
+              checked={settings.sidebarThreadDensity === "compact"}
+              onCheckedChange={(checked) =>
+                updateSettings({ sidebarThreadDensity: checked ? "compact" : "comfortable" })
+              }
+              aria-label="Compact sidebar"
+            />
           }
         />
       </SettingsSection>

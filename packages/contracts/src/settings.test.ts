@@ -632,6 +632,17 @@ describe("ClientSettings sidebar", () => {
     expect(decodeClientSettingsPatch(stored)).toEqual({});
   });
 
+  it("keeps comfortable thread density unless compact is chosen", () => {
+    expect(decodeClientSettings({}).sidebarThreadDensity).toBe("comfortable");
+    expect(decodeClientSettings({ sidebarThreadDensity: "compact" }).sidebarThreadDensity).toBe(
+      "compact",
+    );
+    expect(
+      decodeClientSettingsPatch({ sidebarThreadDensity: "compact" }).sidebarThreadDensity,
+    ).toBe("compact");
+    expect(() => decodeClientSettingsPatch({ sidebarThreadDensity: "dense" })).toThrow();
+  });
+
   it("preserves an explicit legacy sidebar opt-in", () => {
     expect(decodeClientSettings({ legacySidebarEnabled: true }).legacySidebarEnabled).toBe(true);
     expect(decodeClientSettingsPatch({ legacySidebarEnabled: true }).legacySidebarEnabled).toBe(
