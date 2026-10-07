@@ -118,7 +118,6 @@ import { useProjects, useServerConfigs, useThreadShells, waitForProject } from "
 import { useThreadSearch } from "../state/queries";
 import { resolveThreadActionProjectRef, startNewThreadFromContext } from "../lib/chatThreadActions";
 import {
-  appendBrowsePathSegment,
   ensureBrowseDirectoryPath,
   findProjectByPath,
   getBrowseDirectoryPath,
@@ -1097,16 +1096,22 @@ function OpenCommandPaletteDialog(props: {
         query,
         browseEnvironmentPlatform,
         browseEnvironmentId !== null && !isRemoteProjectRepositoryStep && newProjectFlow === null,
+        isRemoteProjectCloneFlow ? "" : (currentView?.initialQuery ?? ""),
       ),
     [
       browseEnvironmentId,
       browseEnvironmentPlatform,
       isRemoteProjectRepositoryStep,
       newProjectFlow,
+      isRemoteProjectCloneFlow,
+      currentView?.initialQuery,
       query,
     ],
   );
   const isBrowsing = browsePath.isBrowsing;
+  const browseInputPath = isBrowsing
+    ? `${browsePath.directoryPath}${browsePath.filterQuery}`
+    : query.trim();
   const browseDirectoryPath = browsePath.directoryPath;
   const paletteMode = getCommandPaletteMode({ currentView, isBrowsing });
   const getAddProjectInitialQueryForEnvironment = useCallback(
@@ -1161,6 +1166,23 @@ function OpenCommandPaletteDialog(props: {
   );
   const relativePathNeedsActiveProject =
     isExplicitRelativeProjectPath(query.trim()) && currentProjectCwdForBrowse === null;
+  // A pinned clone folder does not exist yet, so browse its parent instead of searching for it.
+  const browsePartialPath = useMemo(
+    () =>
+      pinnedCloneDirectoryName.length > 0 &&
+      (isWindowsPlatform(browseEnvironmentPlatform)
+        ? browsePath.filterQuery.toLowerCase() === pinnedCloneDirectoryName.toLowerCase()
+        : browsePath.filterQuery === pinnedCloneDirectoryName)
+        ? browsePath.directoryPath
+        : browseInputPath,
+    [
+      browseEnvironmentPlatform,
+      browseInputPath,
+      browsePath.directoryPath,
+      browsePath.filterQuery,
+      pinnedCloneDirectoryName,
+    ],
+  );
   const browseAccess = useFilesystemReadAccess(browseEnvironmentId);
   const hasBrowseTarget =
     isBrowsing &&
@@ -1172,7 +1194,8 @@ function OpenCommandPaletteDialog(props: {
       ? filesystemEnvironment.browse({
           environmentId: browseEnvironmentId,
           input: {
-            partialPath: browsePath.directoryPath,
+            partialPath: browsePartialPath,
+            fuzzy: true,
             ...(currentProjectCwdForBrowse ? { cwd: currentProjectCwdForBrowse } : {}),
           },
         })
@@ -1221,6 +1244,7 @@ function OpenCommandPaletteDialog(props: {
         environmentId,
         input: {
           partialPath,
+          fuzzy: true,
           ...(cwd ? { cwd } : {}),
         },
       });
@@ -2754,15 +2778,15 @@ function OpenCommandPaletteDialog(props: {
   }
 
   const browseTo = useCallback(
-    async (name: string): Promise<void> => {
+    async (name: string, fullPath: string): Promise<void> => {
       const nextQuery = pinnedCloneDirectoryName
         ? getCloneDestinationBrowsePath({
-            browseDirectoryPath: browsePath.directoryPath,
+            browseDirectoryPath: getBrowseDirectoryPath(fullPath),
             selectedDirectoryName: name,
             cloneDirectoryName: pinnedCloneDirectoryName,
             caseSensitive: !isWindowsPlatform(browseEnvironmentPlatform),
           })
-        : appendBrowsePathSegment(query, name);
+        : ensureBrowseDirectoryPath(fullPath);
       await browseNavigation.run(
         () => prefetchBrowsePath(getBrowseDirectoryPath(nextQuery)),
         () => {
@@ -2772,14 +2796,7 @@ function OpenCommandPaletteDialog(props: {
         },
       );
     },
-    [
-      browseNavigation,
-      browseEnvironmentPlatform,
-      browsePath.directoryPath,
-      pinnedCloneDirectoryName,
-      prefetchBrowsePath,
-      query,
-    ],
+    [browseNavigation, browseEnvironmentPlatform, pinnedCloneDirectoryName, prefetchBrowsePath],
   );
 
   const browseUp = useCallback(async (): Promise<void> => {
@@ -2802,10 +2819,10 @@ function OpenCommandPaletteDialog(props: {
   // Resolve the add-project path from browse data when available. When the
   // query has a trailing separator (e.g. "~/projects/foo/"), parentPath is the
   // directory itself. Otherwise the user typed a partial leaf name, so we need
-  // the exact browse entry's fullPath or fall back to the raw query.
+  // the exact browse entry's fullPath or the input resolved against the picker base.
   const resolvedAddProjectPath = hasTrailingPathSeparator(query)
-    ? (browseResult?.parentPath ?? query.trim())
-    : (exactBrowseEntry?.fullPath ?? query.trim());
+    ? (browseResult?.parentPath ?? browseInputPath)
+    : (exactBrowseEntry?.fullPath ?? browseInputPath);
 
   const canBrowseUp = !relativePathNeedsActiveProject && browsePath.canBrowseUp;
 
@@ -3113,6 +3130,25 @@ function OpenCommandPaletteDialog(props: {
       event.preventDefault();
       void submitNewProject();
       return;
+    }
+
+    if (
+      isBrowsing &&
+      event.key === "Tab" &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey
+    ) {
+      const entry =
+        visibleBrowseEntries.find(
+          (candidate) => `browse:${candidate.fullPath}` === highlightedItemValue,
+        ) ?? visibleBrowseEntries[0];
+      if (entry && !isBrowsePending) {
+        event.preventDefault();
+        void browseTo(entry.name, entry.fullPath);
+        return;
+      }
     }
 
     const shouldSubmitBrowsePath =
@@ -3443,6 +3479,7 @@ function OpenCommandPaletteDialog(props: {
       aria-label="Command palette"
       autoHighlight={autoHighlightsFirstRow ? "always" : false}
       footerActionLabel={footerActionLabel}
+      showCompletionHint={isBrowsing}
       footerTrailing={footerTrailing}
       inputAccessory={inputAccessory}
       inputProps={{
