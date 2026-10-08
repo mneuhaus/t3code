@@ -15,6 +15,7 @@ import * as GitWorkflow from "../git/GitWorkflowService.ts";
 import * as RuntimeLayer from "../orchestration-v2/runtimeLayer.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as ProcessRunner from "../processRunner.ts";
+import * as ServerSettings from "../serverSettings.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as VcsDriverRegistry from "../vcs/VcsDriverRegistry.ts";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
@@ -62,6 +63,8 @@ interface HarnessOptions {
   readonly projects?: (
     real: ProjectService.ProjectService["Service"],
   ) => ProjectService.ProjectService["Service"];
+  /** The `projectsDirectory` setting, given the data dir. */
+  readonly projectsDirectory?: (baseDir: string) => string;
 }
 
 /**
@@ -82,6 +85,9 @@ const layer = (baseDir: string, options?: HarnessOptions) =>
     Layer.provideMerge(layerEnrichment),
     Layer.provideMerge(WorkspacePaths.layer),
     Layer.provideMerge(layerGitWorkflow),
+    Layer.provideMerge(
+      ServerSettings.layerTest({ projectsDirectory: options?.projectsDirectory?.(baseDir) ?? "" }),
+    ),
     Layer.provideMerge(options?.git ?? layerRealGit),
     Layer.provideMerge(SqlitePersistence.layerMemory),
     Layer.provideMerge(ServerConfig.layerTest(baseDir, baseDir)),
@@ -568,5 +574,47 @@ it.effect("removes the folder when the repository cannot be made", () =>
           ),
       }),
     },
+  ),
+);
+
+it.effect("starts a named project under the projectsDirectory setting", () =>
+  withScratch(
+    ({ baseDir }) =>
+      withGitEnv(
+        TEST_IDENTITY,
+        Effect.gen(function* () {
+          const folders = yield* ManagedProjectFolders.ManagedProjectFolders;
+          const fileSystem = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+
+          const created = yield* folders.createNamedProject({ name: "Pinball Stats" });
+
+          // The folder is created on first use, and the default stays the fallback.
+          assert.equal(created.workspaceRoot, path.join(baseDir, "elsewhere", "pinball-stats"));
+          assert.equal(folders.namedProjectsRoot, path.resolve(baseDir, "projects"));
+          assert.isFalse(yield* fileSystem.exists(path.resolve(baseDir, "projects")));
+        }),
+      ),
+    { projectsDirectory: (baseDir) => `${baseDir}/elsewhere` },
+  ),
+);
+
+it.effect("refuses a projectsDirectory that is not an absolute folder", () =>
+  withScratch(
+    ({ baseDir }) =>
+      Effect.gen(function* () {
+        const folders = yield* ManagedProjectFolders.ManagedProjectFolders;
+        const projects = yield* ProjectService.ProjectService;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+
+        const failure = yield* Effect.flip(folders.createNamedProject({ name: "Pinball Stats" }));
+
+        assert.equal(failure._tag, "NamedProjectLocationError");
+        assert.include(failure.message, `"projects/mine"`);
+        assert.isFalse(yield* fileSystem.exists(path.resolve(baseDir, "projects")));
+        assert.deepEqual((yield* projects.snapshot).projects, []);
+      }),
+    { projectsDirectory: () => "projects/mine" },
   ),
 );
