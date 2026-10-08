@@ -103,6 +103,7 @@ import {
   WsRpcGroup,
 } from "@t3tools/contracts";
 import { resolveServerBackgroundActivitySettings } from "@t3tools/shared/backgroundActivitySettings";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import {
   HttpRouter,
   HttpServerRequest,
@@ -1753,6 +1754,7 @@ const layerWsRpc = (
               onSome: (root) => ({ scratchWorkspaceRoot: root }),
             }),
             newProjectsRoot: managedFolders.namedProjectsRoot,
+            homeDirectory: yield* HostProcess.HomeDirectory,
           };
         });
 

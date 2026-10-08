@@ -20,6 +20,7 @@ import {
   addProjectRemoteSourcePathHint,
   addProjectRemoteSourceProvider,
   buildAddProjectRemoteSourceReadiness,
+  resolveNewProjectsRoot,
   sortAddProjectProviderSources,
   type AddProjectRemoteSource,
   type AddProjectRemoteSourceReadiness,
@@ -1512,8 +1513,10 @@ function OpenCommandPaletteDialog(props: {
   /** Folder that holds an environment's name-only projects, or null when it has none. */
   const newProjectsRootFor = useCallback(
     (environmentId: EnvironmentId | null): string | null =>
-      environments.find((environment) => environment.environmentId === environmentId)?.serverConfig
-        ?.newProjectsRoot ?? null,
+      resolveNewProjectsRoot(
+        environments.find((environment) => environment.environmentId === environmentId)
+          ?.serverConfig,
+      ),
     [environments],
   );
 
