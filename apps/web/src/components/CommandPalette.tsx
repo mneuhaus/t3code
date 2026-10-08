@@ -14,6 +14,7 @@ import {
   getNewProjectGitHubTarget,
   getNewProjectPathPreview,
   normalizePastedCloneUrl,
+  resolveNewProjectsRoot,
 } from "@t3tools/client-runtime/operations/projects";
 import { connectionStatusText } from "@t3tools/client-runtime/connection";
 import { threadSearchMatchKey } from "@t3tools/client-runtime/state/thread-search";
@@ -1586,8 +1587,10 @@ function OpenCommandPaletteDialog(props: {
   /** Folder that holds an environment's name-only projects, or null when it has none. */
   const newProjectsRootFor = useCallback(
     (environmentId: EnvironmentId | null): string | null =>
-      environments.find((environment) => environment.environmentId === environmentId)?.serverConfig
-        ?.newProjectsRoot ?? null,
+      resolveNewProjectsRoot(
+        environments.find((environment) => environment.environmentId === environmentId)
+          ?.serverConfig,
+      ),
     [environments],
   );
 

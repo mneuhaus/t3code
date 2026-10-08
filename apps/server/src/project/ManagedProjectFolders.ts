@@ -4,8 +4,9 @@
  *
  * - `<baseDir>/scratch`: the Scratch project ("No project"), with a folder of
  *   its own for each thread;
- * - `<baseDir>/projects/<slug>`: projects started from just a name, each a new
- *   Git repository with a README, an icon, and a first commit.
+ * - `<baseDir>/projects/<slug>`, or under the `projectsDirectory` setting:
+ *   projects started from just a name, each a new Git repository with a
+ *   README, an icon, and a first commit.
  *
  * @module ManagedProjectFolders
  */
@@ -27,7 +28,9 @@ import * as Schema from "effect/Schema";
 
 import * as ServerConfig from "../config.ts";
 import * as GitWorkflow from "../git/GitWorkflowService.ts";
+import * as ServerSettings from "../serverSettings.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
+import { resolveWorktreesDirectory } from "../worktreesDirectory.ts";
 import * as ProjectService from "./ProjectService.ts";
 
 export class ScratchUnavailableError extends Schema.TaggedError<ScratchUnavailableError>()(
@@ -89,7 +92,21 @@ export class NamedProjectCreateError extends Schema.TaggedError<NamedProjectCrea
   }
 }
 
-export type NamedProjectError = NamedProjectFolderError | NamedProjectCreateError;
+export class NamedProjectLocationError extends Schema.TaggedError<NamedProjectLocationError>()(
+  "NamedProjectLocationError",
+  {
+    location: Schema.String,
+  },
+) {
+  override get message(): string {
+    return `The project location "${this.location}" must be an absolute folder on this machine, not a drive root. Change it in Settings → General.`;
+  }
+}
+
+export type NamedProjectError =
+  | NamedProjectLocationError
+  | NamedProjectFolderError
+  | NamedProjectCreateError;
 
 export class ManagedProjectFolders extends Context.Service<
   ManagedProjectFolders,
@@ -107,10 +124,13 @@ export class ManagedProjectFolders extends Context.Service<
       readonly threadId: ThreadId;
       readonly text: string;
     }) => Effect.Effect<Option.Option<string>, ScratchFolderError>;
-    /** The folder that holds projects started from just a name. */
+    /**
+     * The default folder for projects started from just a name. A non-empty
+     * `projectsDirectory` setting replaces it.
+     */
     readonly namedProjectsRoot: string;
     /**
-     * Starts a project from just a name: claims `<namedProjectsRoot>/<slug>`
+     * Starts a project from just a name: claims `<projects folder>/<slug>`
      * (adding `-2`, `-3`, ... when taken), makes it a Git repository with a
      * README, an icon, and a first commit, then creates the project. A failed
      * commit (no Git identity, a signing prompt) keeps the project and returns
@@ -227,6 +247,7 @@ const make = Effect.gen(function* () {
   const gitWorkflow = yield* GitWorkflow.GitWorkflowService;
   const git = yield* GitVcsDriver.GitVcsDriver;
   const projects = yield* ProjectService.ProjectService;
+  const serverSettings = yield* ServerSettings.ServerSettingsService;
   const crypto = yield* Crypto.Crypto;
 
   /**
@@ -370,20 +391,29 @@ const make = Effect.gen(function* () {
     );
   });
 
-  // Projects started from just a name live beside Scratch and worktrees, away
-  // from folders the user organizes by hand. A nested repository is fine here
+  // By default, projects started from just a name live beside Scratch and
+  // worktrees, away from folders the user organizes by hand; the
+  // `projectsDirectory` setting moves them. A nested repository is fine here
   // (unlike Scratch) because each project gets its own `git init`.
   const namedProjectsRoot = path.resolve(config.baseDir, "projects");
+  // Best effort: a settings read failure falls back to the default folder.
+  const readProjectsDirectory = serverSettings.getSettings.pipe(
+    Effect.map((settings) => settings.projectsDirectory),
+    Effect.orElseSucceed(() => ""),
+  );
 
   const claimNamedFolder = Effect.fn("ManagedProjectFolders.claimNamedFolder")(function* (
     name: string,
   ) {
+    const location = yield* readProjectsDirectory;
+    // Same rules as the worktree location: `~` expands, and the folder must
+    // be absolute on this machine and not a drive root.
+    const projectsRoot = resolveWorktreesDirectory(location, namedProjectsRoot, path);
+    if (projectsRoot === null) return yield* new NamedProjectLocationError({ location });
     yield* fileSystem
-      .makeDirectory(namedProjectsRoot, { recursive: true })
+      .makeDirectory(projectsRoot, { recursive: true })
       .pipe(
-        Effect.mapError(
-          (cause) => new NamedProjectFolderError({ folder: namedProjectsRoot, cause }),
-        ),
+        Effect.mapError((cause) => new NamedProjectFolderError({ folder: projectsRoot, cause })),
       );
     const folderName = newProjectFolderName(name);
     const claimed = yield* claimFreeFolder(
@@ -392,17 +422,14 @@ const make = Effect.gen(function* () {
           attempt > MAX_NAMED_FOLDER_ATTEMPTS
             ? Option.none()
             : Option.some(
-                path.join(
-                  namedProjectsRoot,
-                  attempt === 1 ? folderName : `${folderName}-${attempt}`,
-                ),
+                path.join(projectsRoot, attempt === 1 ? folderName : `${folderName}-${attempt}`),
               ),
         ),
       (folder, cause) => new NamedProjectFolderError({ folder, cause }),
     );
     if (Option.isSome(claimed)) return claimed.value;
     return yield* new NamedProjectFolderError({
-      folder: path.join(namedProjectsRoot, folderName),
+      folder: path.join(projectsRoot, folderName),
       cause: `Every folder name for "${folderName}" is taken.`,
     });
   });

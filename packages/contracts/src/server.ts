@@ -676,8 +676,9 @@ export const ServerConfig = Schema.Struct({
    */
   scratchWorkspaceRoot: Schema.optionalKey(TrimmedNonEmptyString),
   /**
-   * Folder that holds projects started from just a name. Present only on
-   * servers that answer projects.createNew.
+   * Default folder for projects started from just a name. Present only on
+   * servers that answer projects.createNew. A non-empty `projectsDirectory`
+   * setting overrides it; read both through `resolveNewProjectsRoot`.
    */
   newProjectsRoot: Schema.optionalKey(TrimmedNonEmptyString),
   /**

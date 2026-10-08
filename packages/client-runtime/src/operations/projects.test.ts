@@ -19,11 +19,25 @@ import {
   getDefaultCloneUrl,
   normalizePastedCloneUrl,
   resolveAddProjectPath,
+  resolveNewProjectsRoot,
   sortAddProjectProviderSources,
 } from "./projects.ts";
 import type { EnvironmentProject } from "../state/models.ts";
 
 describe("add project shared logic", () => {
+  it("puts name-only projects in the projectsDirectory setting, else the server default", () => {
+    const newProjectsRoot = "/Users/julius/.t3/projects";
+    expect(resolveNewProjectsRoot({ newProjectsRoot, settings: { projectsDirectory: "" } })).toBe(
+      newProjectsRoot,
+    );
+    expect(
+      resolveNewProjectsRoot({ newProjectsRoot, settings: { projectsDirectory: "~/Projects" } }),
+    ).toBe("~/Projects");
+    // A server that cannot start projects from a name offers none, setting or not.
+    expect(resolveNewProjectsRoot({ settings: { projectsDirectory: "~/Projects" } })).toBeNull();
+    expect(resolveNewProjectsRoot(null)).toBeNull();
+  });
+
   it("only allows project creation in connected environments", () => {
     expect(canCreateProjectInEnvironment("connected")).toBe(true);
     expect(canCreateProjectInEnvironment("available")).toBe(false);

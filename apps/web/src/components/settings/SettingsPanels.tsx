@@ -2204,6 +2204,11 @@ export function GeneralSettingsPanel() {
     connectedEnvironments.every(
       (target) => target.serverConfig?.environment.capabilities.threadRestartContinuation === true,
     );
+  const supportsProjectsDirectory =
+    connectedEnvironments.length > 0 &&
+    connectedEnvironments.every(
+      (target) => target.serverConfig?.environment.capabilities.projectsDirectory === true,
+    );
 
   const textGenerationProviders = serverProviders.filter(
     (provider) => provider.supportsTextGeneration !== false,
@@ -2245,6 +2250,11 @@ export function GeneralSettingsPanel() {
   const backgroundActivityProfileOption = resolveBackgroundActivityProfileOption(settings);
   const mixedBackgroundActivity = useScopedSettingsMixed(["backgroundActivity"]);
   const mixedAddProjectBaseDirectory = useScopedSettingsMixed(["addProjectBaseDirectory"]);
+  const mixedProjectsDirectory = useScopedSettingsMixed(["projectsDirectory"]);
+  // One machine shows its own default folder; several may each have a different one.
+  const projectsDirectoryPlaceholder = mixedProjectsDirectory
+    ? "Mixed"
+    : ((isEnvironmentScope ? environment?.serverConfig?.newProjectsRoot : undefined) ?? "Default");
   const mixedTextGenerationModel = useScopedSettingsMixed(["textGenerationModelSelection"]);
   const backgroundActivityDescription =
     backgroundActivityProfileOption === "advanced"
@@ -3101,6 +3111,38 @@ export function GeneralSettingsPanel() {
             />
           }
         />
+        {supportsProjectsDirectory && (
+          <SettingsRow
+            serverScoped
+            settingKeys={["projectsDirectory"]}
+            {...searchableSetting("new-project-location")}
+            description="Folder where projects started from just a name are created, such as ~/Projects. Existing projects stay where they are. Leave empty to use the T3 home folder."
+            resetAction={
+              mixedProjectsDirectory ||
+              settings.projectsDirectory !== DEFAULT_UNIFIED_SETTINGS.projectsDirectory ? (
+                <SettingResetButton
+                  label="new project location"
+                  onClick={() =>
+                    updateSettings({
+                      projectsDirectory: DEFAULT_UNIFIED_SETTINGS.projectsDirectory,
+                    })
+                  }
+                />
+              ) : null
+            }
+            control={
+              <DraftInput
+                size="sm"
+                className="w-full sm:w-72"
+                value={mixedProjectsDirectory ? "" : settings.projectsDirectory}
+                onCommit={(next) => updateSettings({ projectsDirectory: next })}
+                placeholder={projectsDirectoryPlaceholder}
+                spellCheck={false}
+                aria-label="New project location"
+              />
+            }
+          />
+        )}
       </SettingsSection>
 
       <SettingsSection id="confirmations" title="Confirmations">

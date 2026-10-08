@@ -5,6 +5,7 @@ import type {
   ProjectMutation,
   ProjectId,
   ServerConfig,
+  ServerSettings,
   SourceControlDiscoveryResult,
   SourceControlProviderKind,
   SourceControlRepositoryInfo,
@@ -48,6 +49,26 @@ export function availableScratchWorkspaceRoot(
   return canCreateProjectInEnvironment(connectionPhase)
     ? (serverConfig?.scratchWorkspaceRoot ?? null)
     : null;
+}
+
+/**
+ * Folder that holds an environment's projects started from just a name: its
+ * `projectsDirectory` setting as typed, else the server's default folder.
+ * Null when the server cannot start projects from a name. The setting comes
+ * from live settings updates, so a change shows before the next config
+ * snapshot.
+ */
+export function resolveNewProjectsRoot(
+  serverConfig:
+    | (Pick<ServerConfig, "newProjectsRoot"> & {
+        readonly settings: Pick<ServerSettings, "projectsDirectory">;
+      })
+    | null
+    | undefined,
+): string | null {
+  if (serverConfig?.newProjectsRoot === undefined) return null;
+  const location = serverConfig.settings.projectsDirectory;
+  return location === "" ? serverConfig.newProjectsRoot : location;
 }
 
 export type AddProjectRemoteSourceReadiness = Record<

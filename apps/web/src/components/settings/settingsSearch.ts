@@ -472,6 +472,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["base directory folder browser path home"],
   },
   {
+    id: "new-project-location",
+    title: "New project location",
+    to: "/settings/general",
+    scope: "environment-defaults",
+    searchTerms: ["new project location folder directory path name create projects"],
+  },
+  {
     id: "unpin-confirmation",
     title: "Unpin confirmation",
     to: "/settings/general",
