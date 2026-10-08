@@ -16,6 +16,7 @@ import {
   addProjectRemoteSourceLabel,
   addProjectRemoteSourcePathHint,
   addProjectRemoteSourceProvider,
+  resolveNewProjectsRoot,
   sortAddProjectProviderSources,
   type AddProjectRemoteSource,
   type AddProjectRemoteSourceReadiness,
@@ -986,8 +987,9 @@ function OpenCommandPaletteDialog(props: {
   };
 
   const newProjectsRootFor = (environmentId: EnvironmentId | null): string | null =>
-    environments.find((environment) => environment.environmentId === environmentId)?.serverConfig
-      ?.newProjectsRoot ?? null;
+    resolveNewProjectsRoot(
+      environments.find((environment) => environment.environmentId === environmentId)?.serverConfig,
+    );
 
   const startNewProject = (
     environmentId: EnvironmentId,

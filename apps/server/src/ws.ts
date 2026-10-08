@@ -100,6 +100,7 @@ import {
   WS_METHODS,
   WsRpcGroup,
 } from "@t3tools/contracts";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import {
   HttpRouter,
   HttpServerRequest,
@@ -1793,6 +1794,7 @@ export const layerWsRpc = (
             onSome: (root) => ({ scratchWorkspaceRoot: root }),
           }),
           newProjectsRoot: managedFolders.namedProjectsRoot,
+          homeDirectory: yield* HostProcess.HomeDirectory,
           ...(lastEventLoopStall === undefined ? {} : { lastEventLoopStall }),
         };
       });

@@ -613,7 +613,10 @@ export const ServerConfig = Schema.Struct({
   threadFind: Schema.optionalKey(Schema.Boolean),
   threadFindProgressive: Schema.optionalKey(Schema.Boolean),
   scratchWorkspaceRoot: Schema.optionalKey(TrimmedNonEmptyString),
+  /** A non-empty `projectsDirectory` setting overrides it; clients read it through `resolveNewProjectsRoot`. */
   newProjectsRoot: Schema.optionalKey(TrimmedNonEmptyString),
+  /** The server user's home, so clients expand `~` in path settings like the server does. */
+  homeDirectory: Schema.optionalKey(TrimmedNonEmptyString),
   /**
    * The latest stall long enough to notice, sent only for a few minutes after
    * it. A client that reconnects reads it to say why the host stopped
