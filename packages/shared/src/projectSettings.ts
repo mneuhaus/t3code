@@ -208,7 +208,8 @@ function resolveProjectOverrides(
 
 /**
  * The workspace mode a new thread starts in. A project the environment made
- * from just a name (a folder directly inside `ServerConfig.newProjectsRoot`)
+ * from just a name (a folder directly inside `newProjectsRoot`, which clients
+ * read through client-runtime's `resolveNewProjectsRoot`)
  * has only its first commit, so until it has a thread, a new thread works in
  * the project checkout even when the environment default is a new worktree.
  * Only that environment default is replaced: a project override still wins,

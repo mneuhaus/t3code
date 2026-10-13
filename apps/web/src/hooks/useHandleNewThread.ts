@@ -4,6 +4,7 @@ import {
   scopeProjectRef,
   scopeThreadRef,
 } from "@t3tools/client-runtime/environment";
+import { resolveNewProjectsRoot } from "@t3tools/client-runtime/operations/projects";
 import { DEFAULT_SERVER_SETTINGS, type ScopedProjectRef, type ThreadId } from "@t3tools/contracts";
 import { useParams, useRouter } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
@@ -168,7 +169,9 @@ export function useNewThreadHandler() {
             projectFile,
           ),
           workspaceRoot: project?.workspaceRoot ?? null,
-          newProjectsRoot: environmentServerConfigs.get(projectRef.environmentId)?.newProjectsRoot,
+          newProjectsRoot: resolveNewProjectsRoot(
+            environmentServerConfigs.get(projectRef.environmentId),
+          ),
           projectHasThreads: readThreadShells().some(
             (thread) =>
               thread.environmentId === projectRef.environmentId &&

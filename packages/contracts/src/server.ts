@@ -724,10 +724,16 @@ export const ServerConfig = Schema.Struct({
    */
   scratchWorkspaceRoot: Schema.optionalKey(TrimmedNonEmptyString),
   /**
-   * Folder that holds projects started from just a name. Present only on
-   * servers that answer projects.createNew.
+   * Default folder for projects started from just a name. Present only on
+   * servers that answer projects.createNew. A non-empty `projectsDirectory`
+   * setting overrides it; read both through `resolveNewProjectsRoot`.
    */
   newProjectsRoot: Schema.optionalKey(TrimmedNonEmptyString),
+  /**
+   * Home folder of the user the server runs as, so clients can expand `~` in
+   * path settings the way the server does. Absent on older servers.
+   */
+  homeDirectory: Schema.optionalKey(TrimmedNonEmptyString),
   /**
    * Palettes published by this environment's machine. Never sent in a config
    * snapshot: the theme stream emits the current set before any change, so a

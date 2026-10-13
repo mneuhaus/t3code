@@ -22,11 +22,44 @@ import {
   getNewProjectPublishTargets,
   normalizePastedCloneUrl,
   resolveAddProjectPath,
+  resolveNewProjectsRoot,
   sortAddProjectProviderSources,
 } from "./projects.ts";
 import type { EnvironmentProject } from "../state/models.ts";
 
 describe("add project shared logic", () => {
+  it("puts name-only projects in the projectsDirectory setting, else the server default", () => {
+    const newProjectsRoot = "/Users/julius/.t3/projects";
+    expect(resolveNewProjectsRoot({ newProjectsRoot, settings: { projectsDirectory: "" } })).toBe(
+      newProjectsRoot,
+    );
+    expect(
+      resolveNewProjectsRoot({ newProjectsRoot, settings: { projectsDirectory: "/srv/code" } }),
+    ).toBe("/srv/code");
+    // `~` expands like the server expands it, so the folder matches project paths.
+    expect(
+      resolveNewProjectsRoot({
+        newProjectsRoot,
+        homeDirectory: "/Users/julius",
+        settings: { projectsDirectory: "~/Projects" },
+      }),
+    ).toBe("/Users/julius/Projects");
+    expect(
+      resolveNewProjectsRoot({
+        newProjectsRoot: "C:\\Users\\julius\\.t3\\projects",
+        homeDirectory: "C:\\Users\\julius",
+        settings: { projectsDirectory: "~\\Projects" },
+      }),
+    ).toBe("C:\\Users\\julius\\Projects");
+    // Without the server's home, `~` stays for the server to expand.
+    expect(
+      resolveNewProjectsRoot({ newProjectsRoot, settings: { projectsDirectory: "~/Projects" } }),
+    ).toBe("~/Projects");
+    // A server that cannot start projects from a name offers none, setting or not.
+    expect(resolveNewProjectsRoot({ settings: { projectsDirectory: "~/Projects" } })).toBeNull();
+    expect(resolveNewProjectsRoot(null)).toBeNull();
+  });
+
   it("only allows project creation in connected environments", () => {
     expect(canCreateProjectInEnvironment("connected")).toBe(true);
     expect(canCreateProjectInEnvironment("available")).toBe(false);
