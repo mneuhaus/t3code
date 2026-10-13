@@ -325,6 +325,7 @@ describe("resolveSnoozePresets", () => {
       "evening",
       "tomorrow",
       "next-week",
+      "month",
     ]);
     expect(presets.find((preset) => preset.id === "three-hours")?.snoozedUntil).toBe(
       localDate(2026, 4, 8, 13).toISOString(),
@@ -342,6 +343,7 @@ describe("resolveSnoozePresets", () => {
       "three-hours",
       "tomorrow",
       "next-week",
+      "month",
     ]);
   });
 
@@ -362,6 +364,7 @@ describe("resolveSnoozePresets", () => {
       "three-hours",
       "evening",
       "tomorrow",
+      "month",
     ]);
     const tomorrow = new Date(presets.find((preset) => preset.id === "tomorrow")!.snoozedUntil);
     expect(tomorrow.getDay()).toBe(1);
