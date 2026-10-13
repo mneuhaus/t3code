@@ -39,6 +39,7 @@ import {
 } from "@t3tools/client-runtime/state/filesystem";
 import {
   appendBrowsePathSegment,
+  getBrowseDirectoryPath,
   inferProjectTitleFromPath,
   isWindowsPlatform,
 } from "@t3tools/client-runtime/state/projects";
@@ -354,7 +355,7 @@ function useBrowsePathInput(environment: EnvironmentOption | null, pinnedDirecto
           ) {
             await loadBrowsePath({
               environmentId: environment.environmentId,
-              input: { partialPath: selectedDirectoryPath },
+              input: { partialPath: selectedDirectoryPath, fuzzy: true },
             });
           }
         },
@@ -894,12 +895,32 @@ function FolderBrowser(props: {
   readonly pinnedDirectoryName?: string;
 }) {
   const browsePath = useMemo(
-    () => getFilesystemBrowsePath(props.pathInput, props.environment.platform),
-    [props.environment.platform, props.pathInput],
+    () =>
+      getFilesystemBrowsePath(
+        props.pathInput,
+        props.environment.platform,
+        true,
+        props.pinnedDirectoryName ? "" : getAddProjectInitialQuery(props.environment.baseDirectory),
+      ),
+    [
+      props.environment.platform,
+      props.environment.baseDirectory,
+      props.pathInput,
+      props.pinnedDirectoryName,
+    ],
   );
+  // A pinned repository folder does not exist yet; search the selected parent.
+  const pinnedDirectoryName = props.pinnedDirectoryName ?? "";
+  const pinnedDirectoryMatches = isWindowsPlatform(props.environment.platform)
+    ? browsePath.filterQuery.toLowerCase() === pinnedDirectoryName.toLowerCase()
+    : browsePath.filterQuery === pinnedDirectoryName;
+  const browseFilterQuery = pinnedDirectoryMatches ? "" : browsePath.filterQuery;
   const browseInput = useMemo(
-    () => (browsePath.directoryPath.length > 0 ? { partialPath: browsePath.directoryPath } : null),
-    [browsePath.directoryPath],
+    () =>
+      browsePath.directoryPath.length > 0
+        ? { partialPath: `${browsePath.directoryPath}${browseFilterQuery}`, fuzzy: true }
+        : null,
+    [browsePath.directoryPath, browseFilterQuery],
   );
   const fileAccessSession = useEnvironmentQuery(
     environmentSession.sessionStateAtom(props.environment.environmentId),
@@ -920,13 +941,6 @@ function FolderBrowser(props: {
           input: browseInput,
         }),
   );
-  // A pinned repository folder does not exist yet, so filtering the listing by
-  // it would empty the folder picker. Anything the user typed still filters.
-  const pinnedDirectoryName = props.pinnedDirectoryName ?? "";
-  const pinnedDirectoryMatches = isWindowsPlatform(props.environment.platform)
-    ? browsePath.filterQuery.toLowerCase() === pinnedDirectoryName.toLowerCase()
-    : browsePath.filterQuery === pinnedDirectoryName;
-  const browseFilterQuery = pinnedDirectoryMatches ? "" : browsePath.filterQuery;
   const { visibleEntries: visibleBrowseEntries } = useMemo(
     () => filterFilesystemBrowseEntries(browseState.data?.entries ?? [], browseFilterQuery),
     [browseFilterQuery, browseState.data?.entries],
@@ -971,6 +985,7 @@ function FolderBrowser(props: {
           <ListRow
             key={entry.fullPath}
             title={entry.name}
+            subtitle={entry.fullPath}
             icon={
               <SymbolView
                 name="folder"
@@ -983,7 +998,7 @@ function FolderBrowser(props: {
             right={null}
             onPress={() => {
               void props.navigateToBrowsePath({
-                browseDirectoryPath: browsePath.directoryPath,
+                browseDirectoryPath: getBrowseDirectoryPath(entry.fullPath),
                 selectedDirectoryName: entry.name,
               });
             }}
@@ -1273,8 +1288,16 @@ export function AddProjectLocalFolderScreen(props: { readonly environmentId?: st
   const submitPath = useCallback(async () => {
     if (!environment || isBrowseNavigating || isSubmitting) return;
     setError(null);
+    const browsePath = getFilesystemBrowsePath(
+      pathInput,
+      environment.platform,
+      true,
+      getAddProjectInitialQuery(environment.baseDirectory),
+    );
     const resolved = resolveAddProjectPath({
-      rawPath: pathInput,
+      rawPath: browsePath.isBrowsing
+        ? `${browsePath.directoryPath}${browsePath.filterQuery}`
+        : pathInput,
       currentProjectCwd: null,
       platform: environment.platform,
     });
