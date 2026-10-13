@@ -53,6 +53,7 @@ import {
   resolveMergedStageDependencies,
   resolveFffNativeDependencies,
   resolveBuildOptions,
+  resolveDesktopBuildFlavor,
   resolveDesktopBuildIconAssets,
   resolveDesktopProductName,
   resolveDesktopUpdateChannel,
@@ -295,6 +296,64 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     assert.equal(resolveDesktopWebAssetBrand("0.0.17"), "production");
     assert.equal(resolveDesktopWebAssetBrand("0.0.17-nightly.20260413.42"), "nightly");
   });
+
+  it("brands a flavored build after the flavor with the dev artwork", () => {
+    const flavor = resolveDesktopBuildFlavor("marc");
+    assert.deepStrictEqual(flavor, { id: "marc", label: "Marc" });
+    assert.equal(resolveDesktopProductName("0.0.42", flavor), "T3 Code (Marc)");
+    assert.equal(resolveDesktopWebAssetBrand("0.0.42", flavor), "development");
+    assert.equal(
+      resolveDesktopBuildIconAssets("0.0.42", flavor).macIconPng,
+      BRAND_ASSET_PATHS.developmentDesktopIconPng,
+    );
+  });
+
+  it.effect("gives a flavored build its own app id without an update feed", () =>
+    Effect.gen(function* () {
+      const flavored = yield* createBuildConfig(
+        "mac",
+        "dmg",
+        "0.0.42",
+        false,
+        false,
+        undefined,
+        undefined,
+        false,
+        "arm64",
+        resolveDesktopBuildFlavor("marc"),
+      );
+      const release = yield* createBuildConfig(
+        "mac",
+        "dmg",
+        "0.0.42",
+        false,
+        false,
+        undefined,
+        undefined,
+        false,
+        "arm64",
+      );
+
+      assert.equal(flavored.appId, "com.t3tools.t3code.marc");
+      assert.equal(flavored.productName, "T3 Code (Marc)");
+      assert.equal(flavored.artifactName, "T3-Code-marc-${version}-${arch}.${ext}");
+      assert.notProperty(flavored, "publish");
+      assert.equal(release.appId, "com.t3tools.t3code");
+      assert.property(release, "publish");
+      // It replaces the release app, so it takes over its t3code:// links and
+      // declares the same Info.plist keys, including the default-browser candidacy.
+      const flavoredMac = flavored.mac as Record<string, unknown>;
+      const releaseMac = release.mac as Record<string, unknown>;
+      assert.deepStrictEqual(flavoredMac.protocols, releaseMac.protocols);
+      assert.deepStrictEqual(flavoredMac.extendInfo, releaseMac.extendInfo);
+    }).pipe(
+      Effect.provide(
+        ConfigProvider.layer(
+          ConfigProvider.fromEnv({ env: { GITHUB_REPOSITORY: "pingdotgg/t3code" } }),
+        ),
+      ),
+    ),
+  );
 
   it.effect("resolves GitHub desktop publish config from Effect config", () =>
     Effect.gen(function* () {
