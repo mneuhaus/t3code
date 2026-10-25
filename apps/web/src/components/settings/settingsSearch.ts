@@ -270,6 +270,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["latex tex katex equations formulas markdown"],
   },
   {
+    id: "compact-sidebar",
+    title: "Compact sidebar",
+    to: "/settings/appearance",
+    searchTerms: ["density dense two lines thread rows cards smaller more threads"],
+  },
+  {
     id: "panel-animations",
     title: "Panel animations",
     to: "/settings/appearance",

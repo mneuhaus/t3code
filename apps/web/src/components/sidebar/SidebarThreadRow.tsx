@@ -429,6 +429,11 @@ type SortableThreadRowBag = Pick<
 export const draftSurfaceClassName = "bg-warning/4 hover:bg-warning/8";
 export const draftPenClassName = "size-3 shrink-0 text-warning-foreground";
 
+// Compact density also tightens the corners of every row surface in the list.
+export function sidebarRowRadiusClassName(compact: boolean): string {
+  return compact ? "rounded-[.25rem]" : "rounded-md";
+}
+
 // useSortable memoizes on its `disabled` object, so a fresh one per render
 // re-renders every row and marker on each sidebar update.
 export const SIDEBAR_SORTABLE_DRAG_DISABLED = { draggable: true } as const;
@@ -511,6 +516,10 @@ const dropVerbBadge: Record<SidebarDropVerb, ReactNode> = {
 type SidebarThreadRowProps = {
   thread: SidebarThreadSummary;
   variant: "card" | "slim";
+  // Compact density: cards fold the project label into the meta line, so
+  // they take two lines instead of three. Slim rows keep their layout; both
+  // get the tighter corners.
+  compact: boolean;
   variantAction: SidebarSweepAction;
   settlementSupported: boolean;
   snoozeSupported: boolean;
@@ -891,7 +900,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   };
 
   const rowSurfaceClassName = cn(
-    "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+    "group/sidebar-row relative w-full cursor-pointer overflow-hidden text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+    sidebarRowRadiusClassName(props.compact),
     variantAction === "unsettle" && "[&:not(:hover):not(:focus-within)_*]:text-secondary-label/70",
     props.isActive
       ? "bg-sidebar-row-active text-sidebar-foreground"
@@ -1238,6 +1248,202 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   }
 
   const diff = latestRunDiff(thread);
+  const projectFavicon = props.project ? (
+    <ProjectFavicon project={props.project} className="size-4 shrink-0" />
+  ) : null;
+  const projectLabelClassName = cn(
+    "min-w-0 truncate text-secondary-label text-xs",
+    shouldRecede ? "font-normal" : "font-medium",
+  );
+  const regeneratingTitleStatus = isRegeneratingTitle ? (
+    <span role="status" className="sr-only">
+      Regenerating title
+    </span>
+  ) : null;
+  const statusSlot = sortable?.isDragging ? (
+    dragDestination
+  ) : (
+    <span
+      className={cn(
+        "group/sidebar-status-slot relative ml-auto flex h-5 min-w-8 shrink-0 items-stretch justify-end text-xs",
+        props.sweepAction !== null && "hidden",
+      )}
+    >
+      <span
+        className={cn(
+          isWokeStatus
+            ? "pointer-events-auto"
+            : "pointer-events-none group-has-[:focus-visible]/sidebar-status-slot:absolute group-has-[:focus-visible]/sidebar-status-slot:right-0 group-has-[:focus-visible]/sidebar-status-slot:opacity-0 group-any-hover/sidebar-row:absolute group-any-hover/sidebar-row:right-0 group-any-hover/sidebar-row:opacity-0",
+          "flex items-center self-center justify-self-end tabular-nums text-secondary-label transition-opacity",
+          snoozeMenuOpen && "pointer-events-none absolute right-0 opacity-0",
+        )}
+      >
+        {topStatus ? (
+          isWokeStatus ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label="Dismiss Woke notification"
+                    onClick={handleAcknowledgeWokeClick}
+                    className={cn(
+                      "inline-flex cursor-pointer items-center gap-1 rounded-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                      topStatus.className,
+                    )}
+                  >
+                    <AlarmClockIcon aria-hidden className="size-4 shrink-0" />
+                    <span role="status">{topStatus.label}</span>
+                  </button>
+                }
+              />
+              <TooltipPopup side="top">Dismiss Woke notification</TooltipPopup>
+            </Tooltip>
+          ) : (
+            <span className={cn("inline-flex items-center gap-1 font-medium", topStatus.className)}>
+              {topStatus.icon === "working" ? (
+                <CircleDashedIcon aria-hidden className="size-4 shrink-0" />
+              ) : topStatus.icon === "waiting" ? (
+                <CircleDotDashedIcon aria-hidden className="size-4 shrink-0" />
+              ) : topStatus.icon === "input" ? (
+                <MessageCircleQuestionIcon aria-hidden className="size-4 shrink-0" />
+              ) : topStatus.icon === "request" ? (
+                <UserRoundIcon aria-hidden className="size-4 shrink-0" />
+              ) : topStatus.icon === "approval" ? (
+                <ShieldQuestionIcon aria-hidden className="size-4 shrink-0" />
+              ) : topStatus.icon === "failed" ? (
+                <CircleAlertIcon aria-hidden className="size-4 shrink-0" />
+              ) : topStatus.icon === "done" ? (
+                <CircleCheckIcon aria-hidden className="size-4 shrink-0" />
+              ) : null}
+              {/* Not a live region: a collapsed sidebar is inert, so
+                BackgroundThreadAnnouncer and the open thread's
+                timeline speak status changes instead. */}
+              {topStatus.label}
+              {status === "working" ? (
+                <span aria-hidden>
+                  <WorkingDuration startedAt={resolveWorkingStartedAt(thread)} />
+                </span>
+              ) : status === "waiting" ? (
+                <span aria-hidden>
+                  <WorkingDuration startedAt={thread.latestRun?.completedAt ?? null} />
+                </span>
+              ) : null}
+            </span>
+          )
+        ) : (
+          <RelativeTimeLabel timestamp={threadTimeTimestamp(thread)} />
+        )}
+      </span>
+      {props.settlementSupported || showSnoozeButton || hasUnsentDraft ? (
+        <span
+          className={cn(
+            // Mouse clicks leave Settle focused; focus-within would pin controls over
+            // the status label after the pointer leaves. Use focus-visible instead.
+            "pointer-events-none absolute inset-y-0 right-0 flex items-stretch opacity-0 transition-opacity has-[:focus-visible]:pointer-events-auto has-[:focus-visible]:static has-[:focus-visible]:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:static group-any-hover/sidebar-row:opacity-100",
+            snoozeMenuOpen && "pointer-events-auto static opacity-100",
+          )}
+        >
+          {hasUnsentDraft ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label="Discard draft"
+                    onClick={handleDiscardDraftClick}
+                    className="inline-flex cursor-pointer items-center rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  />
+                }
+              >
+                <XIcon className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipPopup side="top">Discard draft</TooltipPopup>
+            </Tooltip>
+          ) : null}
+          {showSnoozeButton ? (
+            <SnoozeMenuButton
+              open={snoozeMenuOpen}
+              onOpenChange={setSnoozeMenuOpen}
+              onSnooze={handleSnoozePreset}
+              timestampFormat={props.timestampFormat}
+            />
+          ) : null}
+          {props.settlementSupported ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label="Settle thread"
+                    onClick={handleSettleClick}
+                    onPointerDown={handleActionPointerDown}
+                    className="-mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  />
+                }
+              >
+                <CheckIcon className="size-3.5" />
+                Settle
+              </TooltipTrigger>
+              <TooltipPopup>Settle thread</TooltipPopup>
+            </Tooltip>
+          ) : null}
+        </span>
+      ) : null}
+    </span>
+  );
+  const sweepDestination = props.sweepAction !== null ? dragDestination : null;
+  const branchLabel = thread.branch ? (
+    <>
+      <ThreadWorktreeIndicator thread={thread} />
+      <span className="flex min-w-0 flex-1 text-muted-foreground/40">
+        <MiddleTruncate value={thread.branch} showTitle={false} />
+      </span>
+    </>
+  ) : showsScratchMachine ? (
+    <>
+      <EnvironmentMachineIcon
+        aria-hidden
+        kind={props.environmentMachine}
+        className="size-3 shrink-0 text-muted-foreground/40"
+      />
+      <span className="min-w-0 flex-1 truncate text-muted-foreground/40">
+        {props.scratchMachineLabel}
+      </span>
+    </>
+  ) : (
+    <span className="flex-1" />
+  );
+  const threadMeta = (
+    <>
+      {terminalStatusIcon}
+      {prBadge}
+      {diff ? (
+        <span className="shrink-0 font-mono">
+          <span className="text-diff-addition-foreground">+{formatDiffCount(diff.insertions)}</span>{" "}
+          <span className="text-diff-deletion-foreground">−{formatDiffCount(diff.deletions)}</span>
+        </span>
+      ) : null}
+      <span
+        aria-hidden
+        className="pointer-events-none ml-auto inline-flex shrink-0 items-center gap-1"
+      >
+        {isRemote && !showsScratchMachine ? (
+          <span className="inline-flex shrink-0 items-center text-sidebar-muted-foreground/70">
+            <EnvironmentMachineIcon
+              aria-hidden
+              kind={props.environmentMachine}
+              className="size-3.5"
+            />
+          </span>
+        ) : null}
+        <SidebarProviderStack
+          thread={thread}
+          providerEntryByInstanceId={props.providerEntryByInstanceId}
+        />
+      </span>
+    </>
+  );
 
   return (
     <li
@@ -1245,7 +1451,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       {...sortableRootProps}
       {...(fileDropHandlers ?? {})}
       className={cn(
-        "list-none py-0.5 [content-visibility:auto] [contain-intrinsic-size:auto_78px]",
+        // Matches the content box (h-[4.875rem], compact h-[3.125rem]); py-0.5 adds on top.
+        "list-none py-0.5 [content-visibility:auto]",
+        props.compact ? "[contain-intrinsic-size:auto_50px]" : "[contain-intrinsic-size:auto_78px]",
         sortable?.isDragging && "relative z-20",
       )}
     >
@@ -1269,228 +1477,64 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           }
         >
           {accessibleTitle}
-          <div className="relative z-10 h-[4.875rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
-            <div className="flex h-5 min-w-0 items-center gap-1.5">
-              {draftIndicator}
-              {props.project ? (
-                <ProjectFavicon project={props.project} className="size-4 shrink-0" />
-              ) : null}
-              {/* Left of the status slot, the pin would slide when hover swaps the
-                label for the wider row controls. */}
-              {pinIndicator}
-              {props.projectDisplayName ? (
-                <span
-                  className={cn(
-                    "min-w-0 flex-1 truncate text-secondary-label text-xs",
-                    shouldRecede ? "font-normal" : "font-medium",
-                  )}
-                >
-                  {props.projectDisplayName}
-                </span>
-              ) : (
-                <span className="flex-1" />
-              )}
-              {sortable?.isDragging ? (
-                dragDestination
-              ) : (
-                <span
-                  className={cn(
-                    "group/sidebar-status-slot relative ml-auto flex h-5 min-w-8 shrink-0 items-stretch justify-end text-xs",
-                    props.sweepAction !== null && "hidden",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      isWokeStatus
-                        ? "pointer-events-auto"
-                        : "pointer-events-none group-has-[:focus-visible]/sidebar-status-slot:absolute group-has-[:focus-visible]/sidebar-status-slot:right-0 group-has-[:focus-visible]/sidebar-status-slot:opacity-0 group-any-hover/sidebar-row:absolute group-any-hover/sidebar-row:right-0 group-any-hover/sidebar-row:opacity-0",
-                      "flex items-center self-center justify-self-end tabular-nums text-secondary-label transition-opacity",
-                      snoozeMenuOpen && "pointer-events-none absolute right-0 opacity-0",
-                    )}
-                  >
-                    {topStatus ? (
-                      isWokeStatus ? (
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <button
-                                type="button"
-                                aria-label="Dismiss Woke notification"
-                                onClick={handleAcknowledgeWokeClick}
-                                className={cn(
-                                  "inline-flex cursor-pointer items-center gap-1 rounded-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                                  topStatus.className,
-                                )}
-                              >
-                                <AlarmClockIcon aria-hidden className="size-4 shrink-0" />
-                                <span role="status">{topStatus.label}</span>
-                              </button>
-                            }
-                          />
-                          <TooltipPopup side="top">Dismiss Woke notification</TooltipPopup>
-                        </Tooltip>
-                      ) : (
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1 font-medium",
-                            topStatus.className,
-                          )}
-                        >
-                          {topStatus.icon === "working" ? (
-                            <CircleDashedIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "waiting" ? (
-                            <CircleDotDashedIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "input" ? (
-                            <MessageCircleQuestionIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "request" ? (
-                            <UserRoundIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "approval" ? (
-                            <ShieldQuestionIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "failed" ? (
-                            <CircleAlertIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "done" ? (
-                            <CircleCheckIcon aria-hidden className="size-4 shrink-0" />
-                          ) : null}
-                          {/* Not a live region: a collapsed sidebar is inert, so
-                            BackgroundThreadAnnouncer and the open thread's
-                            timeline speak status changes instead. */}
-                          {topStatus.label}
-                          {status === "working" ? (
-                            <span aria-hidden>
-                              <WorkingDuration startedAt={resolveWorkingStartedAt(thread)} />
-                            </span>
-                          ) : status === "waiting" ? (
-                            <span aria-hidden>
-                              <WorkingDuration startedAt={thread.latestRun?.completedAt ?? null} />
-                            </span>
-                          ) : null}
-                        </span>
-                      )
-                    ) : (
-                      <RelativeTimeLabel timestamp={threadTimeTimestamp(thread)} />
-                    )}
-                  </span>
-                  {props.settlementSupported || showSnoozeButton || hasUnsentDraft ? (
-                    <span
-                      className={cn(
-                        // Mouse clicks leave Settle focused; focus-within would pin controls over
-                        // the status label after the pointer leaves. Use focus-visible instead.
-                        "pointer-events-none absolute inset-y-0 right-0 flex items-stretch opacity-0 transition-opacity has-[:focus-visible]:pointer-events-auto has-[:focus-visible]:static has-[:focus-visible]:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:static group-any-hover/sidebar-row:opacity-100",
-                        snoozeMenuOpen && "pointer-events-auto static opacity-100",
-                      )}
-                    >
-                      {hasUnsentDraft ? (
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <button
-                                type="button"
-                                aria-label="Discard draft"
-                                onClick={handleDiscardDraftClick}
-                                className="inline-flex cursor-pointer items-center rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
-                              />
-                            }
-                          >
-                            <XIcon className="size-3.5" />
-                          </TooltipTrigger>
-                          <TooltipPopup side="top">Discard draft</TooltipPopup>
-                        </Tooltip>
-                      ) : null}
-                      {showSnoozeButton ? (
-                        <SnoozeMenuButton
-                          open={snoozeMenuOpen}
-                          onOpenChange={setSnoozeMenuOpen}
-                          onSnooze={handleSnoozePreset}
-                          timestampFormat={props.timestampFormat}
-                        />
-                      ) : null}
-                      {props.settlementSupported ? (
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <button
-                                type="button"
-                                aria-label="Settle thread"
-                                onClick={handleSettleClick}
-                                onPointerDown={handleActionPointerDown}
-                                className="-mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
-                              />
-                            }
-                          >
-                            <CheckIcon className="size-3.5" />
-                            Settle
-                          </TooltipTrigger>
-                          <TooltipPopup>Settle thread</TooltipPopup>
-                        </Tooltip>
-                      ) : null}
+          {props.compact ? (
+            <div className="relative z-10 h-[3.125rem] px-(--sidebar-row-content-inset) py-1.5">
+              <div className="flex h-5 min-w-0 items-center gap-1.5">
+                {draftIndicator}
+                {projectFavicon}
+                {/* Left of the status slot, the pin would slide when hover swaps the
+                  label for the wider row controls. */}
+                {pinIndicator}
+                {title}
+                {regeneratingTitleStatus}
+                {statusSlot}
+                {sweepDestination}
+              </div>
+              <div className="mt-0.5 flex h-4 min-w-0 items-center gap-1.5 text-secondary-label text-xs">
+                {props.projectDisplayName ? (
+                  <>
+                    <span className={cn(projectLabelClassName, "max-w-[45%]")}>
+                      {props.projectDisplayName}
                     </span>
-                  ) : null}
-                </span>
-              )}
-              {props.sweepAction !== null ? dragDestination : null}
-            </div>
-            <div className="mt-1 flex min-w-0">
-              {title}
-              {isRegeneratingTitle ? (
-                <span role="status" className="sr-only">
-                  Regenerating title
-                </span>
-              ) : null}
-            </div>
-            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-secondary-label text-xs">
-              {thread.branch ? (
-                <>
-                  <ThreadWorktreeIndicator thread={thread} />
-                  <span className="flex min-w-0 flex-1 text-muted-foreground/40">
-                    <MiddleTruncate value={thread.branch} showTitle={false} />
-                  </span>
-                </>
-              ) : showsScratchMachine ? (
-                <>
-                  <EnvironmentMachineIcon
-                    aria-hidden
-                    kind={props.environmentMachine}
-                    className="size-3 shrink-0 text-muted-foreground/40"
-                  />
-                  <span className="min-w-0 flex-1 truncate text-muted-foreground/40">
-                    {props.scratchMachineLabel}
-                  </span>
-                </>
-              ) : (
-                <span className="flex-1" />
-              )}
-              {terminalStatusIcon}
-              {prBadge}
-              {diff ? (
-                <span className="shrink-0 font-mono">
-                  <span className="text-diff-addition-foreground">
-                    +{formatDiffCount(diff.insertions)}
-                  </span>{" "}
-                  <span className="text-diff-deletion-foreground">
-                    −{formatDiffCount(diff.deletions)}
-                  </span>
-                </span>
-              ) : null}
-              <span
-                aria-hidden
-                className="pointer-events-none ml-auto inline-flex shrink-0 items-center gap-1"
-              >
-                {isRemote && !showsScratchMachine ? (
-                  <span className="inline-flex shrink-0 items-center text-sidebar-muted-foreground/70">
-                    <EnvironmentMachineIcon
-                      aria-hidden
-                      kind={props.environmentMachine}
-                      className="size-3.5"
-                    />
-                  </span>
+                    {thread.branch || showsScratchMachine ? (
+                      <span aria-hidden className="shrink-0 text-muted-foreground/40">
+                        ·
+                      </span>
+                    ) : null}
+                  </>
                 ) : null}
-                <SidebarProviderStack
-                  thread={thread}
-                  providerEntryByInstanceId={props.providerEntryByInstanceId}
-                />
-              </span>
+                {branchLabel}
+                {threadMeta}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="relative z-10 h-[4.875rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
+              <div className="flex h-5 min-w-0 items-center gap-1.5">
+                {draftIndicator}
+                {projectFavicon}
+                {/* Left of the status slot, the pin would slide when hover swaps the
+                  label for the wider row controls. */}
+                {pinIndicator}
+                {props.projectDisplayName ? (
+                  <span className={cn(projectLabelClassName, "flex-1")}>
+                    {props.projectDisplayName}
+                  </span>
+                ) : (
+                  <span className="flex-1" />
+                )}
+                {statusSlot}
+                {sweepDestination}
+              </div>
+              <div className="mt-1 flex min-w-0">
+                {title}
+                {regeneratingTitleStatus}
+              </div>
+              <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-secondary-label text-xs">
+                {branchLabel}
+                {threadMeta}
+              </div>
+            </div>
+          )}
           {props.jumpLabel ? <JumpHintBadge label={props.jumpLabel} /> : null}
         </TooltipTrigger>
         {detailsTooltip}
@@ -1516,6 +1560,7 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
   providerEntryByInstanceId: ReadonlyMap<string, SidebarProviderEntry>;
   isHighlighted: boolean;
   isRouteActive: boolean;
+  compact: boolean;
   resultId: string;
   searchMatch: EnvironmentThreadSearchMatch | null;
   searchQuery: string;
@@ -1606,7 +1651,8 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
               onMouseMove={props.onHighlight}
               onClick={props.onSelect}
               className={cn(
-                "group/sidebar-row group/v2-row flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1 text-left text-sm outline-none",
+                "group/sidebar-row group/v2-row flex min-h-9 w-full cursor-pointer items-center gap-2.5 px-2.5 py-1 text-left text-sm outline-none",
+                sidebarRowRadiusClassName(props.compact),
                 props.isHighlighted || props.isRouteActive
                   ? "bg-sidebar-row-active text-sidebar-foreground"
                   : "text-sidebar-muted-foreground/75 hover:bg-sidebar-row-hover hover:text-sidebar-foreground",

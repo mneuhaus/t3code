@@ -210,6 +210,19 @@ describe("ClientSettings quit confirmation", () => {
   });
 });
 
+describe("ClientSettings sidebar thread density", () => {
+  it("keeps comfortable thread density unless compact is chosen", () => {
+    expect(decodeClientSettings({}).sidebarThreadDensity).toBe("comfortable");
+    expect(decodeClientSettings({ sidebarThreadDensity: "compact" }).sidebarThreadDensity).toBe(
+      "compact",
+    );
+    expect(
+      decodeClientSettingsPatch({ sidebarThreadDensity: "compact" }).sidebarThreadDensity,
+    ).toBe("compact");
+    expect(() => decodeClientSettingsPatch({ sidebarThreadDensity: "dense" })).toThrow();
+  });
+});
+
 describe("provider enabled defaults", () => {
   it("resolves instance enabled state with explicit false winning", () => {
     const grok = ProviderDriverKind.make("grok");

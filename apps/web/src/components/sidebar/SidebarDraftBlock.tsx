@@ -19,7 +19,11 @@ import {
   type ComposerThreadDraftState,
   type DraftSessionState,
 } from "../../composerDraftStore";
-import { draftPenClassName, draftSurfaceClassName } from "./SidebarThreadRow";
+import {
+  draftPenClassName,
+  draftSurfaceClassName,
+  sidebarRowRadiusClassName,
+} from "./SidebarThreadRow";
 
 const SidebarDraftRow = memo(function SidebarDraftRow(props: {
   draftId: DraftId;
@@ -27,6 +31,8 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
   project: ProjectFaviconProject | null;
   projectDisplayName: string | null;
   isActive: boolean;
+  // Mirrors the thread cards' density so drafts and cards line up.
+  compact: boolean;
   onNavigate: (draftId: DraftId) => void;
   onDiscard: (draftId: DraftId) => void;
   onContextMenu: (draftId: DraftId, position: { x: number; y: number }) => void;
@@ -87,7 +93,8 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
         aria-current={accessibility.current}
         data-testid="sidebar-draft-row"
         className={cn(
-          "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left text-sidebar-foreground outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+          "group/sidebar-row relative w-full cursor-pointer overflow-hidden text-left text-sidebar-foreground outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+          sidebarRowRadiusClassName(props.compact),
           props.isActive ? "bg-sidebar-row-active" : draftSurfaceClassName,
         )}
         onClick={handleActivate}
@@ -95,15 +102,29 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
         onKeyDown={handleKeyDown}
       >
         <span className="sr-only">{preview}</span>
-        <div className="relative z-10 h-[4.875rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
+        <div
+          className={cn(
+            "relative z-10 px-(--sidebar-row-content-inset)",
+            props.compact ? "h-[3.125rem] py-1.5" : "h-[4.875rem] py-(--sidebar-content-inset)",
+          )}
+        >
           <div className="flex h-5 min-w-0 items-center gap-1.5">
             <SquarePenIcon aria-hidden className={draftPenClassName} />
             {props.project ? (
               <ProjectFavicon project={props.project} className="size-4 shrink-0" />
             ) : null}
-            <span className="min-w-0 flex-1 truncate text-xs font-medium text-secondary-label">
-              {props.projectDisplayName}
-            </span>
+            {props.compact ? (
+              <span
+                aria-hidden
+                className="min-w-0 flex-1 truncate text-sm font-medium text-foreground/90"
+              >
+                {preview}
+              </span>
+            ) : (
+              <span className="min-w-0 flex-1 truncate text-xs font-medium text-secondary-label">
+                {props.projectDisplayName}
+              </span>
+            )}
             <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-end">
               <Tooltip>
                 <TooltipTrigger
@@ -122,9 +143,15 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
               </Tooltip>
             </span>
           </div>
-          <div aria-hidden className="mt-0.5 truncate text-sm font-medium text-foreground/90">
-            {preview}
-          </div>
+          {props.compact ? (
+            <div className="mt-0.5 h-4 truncate text-xs font-medium text-secondary-label">
+              {props.projectDisplayName}
+            </div>
+          ) : (
+            <div aria-hidden className="mt-0.5 truncate text-sm font-medium text-foreground/90">
+              {preview}
+            </div>
+          )}
         </div>
       </div>
     </li>
@@ -142,6 +169,7 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
   projectDisplayNameByKey: ReadonlyMap<string, string>;
   scopedProjectKeys: ReadonlySet<string> | null;
   routeDraftId: string | null;
+  compact: boolean;
   onNavigateToDraft: (draftId: DraftId) => void;
   onDraftContextMenu: (draftId: DraftId, position: { x: number; y: number }) => void;
 }) {
@@ -206,6 +234,7 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
             project={props.projectByKey.get(projectKey) ?? null}
             projectDisplayName={props.projectDisplayNameByKey.get(projectKey) ?? null}
             isActive={draftId === props.routeDraftId}
+            compact={props.compact}
             onNavigate={props.onNavigateToDraft}
             onDiscard={discardComposerDraft}
             onContextMenu={props.onDraftContextMenu}

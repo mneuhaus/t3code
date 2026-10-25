@@ -376,6 +376,31 @@ export function AppearanceSettingsPanel() {
             />
           }
         />
+        <SettingsRow
+          {...searchableSetting("compact-sidebar")}
+          description="Show sidebar threads on two lines instead of three, so more of them fit."
+          resetAction={
+            settings.sidebarThreadDensity !== DEFAULT_UNIFIED_SETTINGS.sidebarThreadDensity ? (
+              <SettingResetButton
+                label="compact sidebar"
+                onClick={() =>
+                  updateSettings({
+                    sidebarThreadDensity: DEFAULT_UNIFIED_SETTINGS.sidebarThreadDensity,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.sidebarThreadDensity === "compact"}
+              onCheckedChange={(checked) =>
+                updateSettings({ sidebarThreadDensity: checked ? "compact" : "comfortable" })
+              }
+              aria-label="Compact sidebar"
+            />
+          }
+        />
       </SettingsSection>
 
       <SettingsSection id="motion" title="Motion">

@@ -221,6 +221,7 @@ import { useThreadRouteTarget } from "../hooks/useThreadRouteTarget";
 import {
   SidebarSearchResultRow,
   SortableThreadRow,
+  sidebarRowRadiusClassName,
   type SidebarProviderEntry,
   type SidebarSweepAction,
 } from "./sidebar/SidebarThreadRow";
@@ -803,6 +804,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const confirmThreadDelete = useClientSettings((s) => s.confirmThreadDelete);
   const confirmThreadArchive = useClientSettings((s) => s.confirmThreadArchive);
   const timestampFormat = useClientSettings((s) => s.timestampFormat);
+  const compactThreadCards = useClientSettings((s) => s.sidebarThreadDensity === "compact");
   const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
   const {
     settleThread,
@@ -1811,6 +1813,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     settledVisibleCount,
     routeThreadKey: routeRowThreadKey,
     snoozedThreadCount: snoozedThreads.length,
+    compactCards: compactThreadCards,
   });
   const draggedThreadKey = dragState?.activeKey;
   const draggedFromSection = dragState?.activeSection;
@@ -2905,6 +2908,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         }
                         isHighlighted={activeSearchResultIndex === index}
                         isRouteActive={routeRowThreadKey === threadKey}
+                        compact={compactThreadCards}
                         resultId={`sidebar-thread-search-result-${index}`}
                         searchMatch={
                           threadSearchMatchByKey.get(
@@ -2985,6 +2989,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             }
                             thread={thread}
                             variant={rowVariant}
+                            compact={compactThreadCards}
                             variantAction={
                               section === "snoozed"
                                 ? "unsnooze"
@@ -3080,6 +3085,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           projectDisplayNameByKey={projectDisplayNameByKey}
                           scopedProjectKeys={scopedProjectKeys}
                           routeDraftId={routeDraftIdForRows}
+                          compact={compactThreadCards}
                           onNavigateToDraft={navigateToDraft}
                           onDraftContextMenu={handleDraftContextMenu}
                         />,
@@ -3117,6 +3123,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                               <SidebarSectionPlaceholder
                                 key="active-placeholder"
                                 marker="active-placeholder"
+                                compact={compactThreadCards}
                                 label="Active"
                                 showHint={
                                   from !== null &&
@@ -3191,6 +3198,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                               <SidebarSectionPlaceholder
                                 key="settled-placeholder"
                                 marker="settled-placeholder"
+                                compact={compactThreadCards}
                                 label="Settled"
                                 showHint={
                                   from !== null &&
@@ -3217,7 +3225,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             olderSettledShelf.retry();
                             showMoreSettled();
                           }}
-                          className="flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm text-sidebar-muted-foreground/55 hover:bg-sidebar-row-hover hover:text-sidebar-foreground disabled:cursor-default"
+                          className={cn(
+                            "flex h-9 w-full cursor-pointer items-center gap-2.5 px-2.5 text-left text-sm text-sidebar-muted-foreground/55 hover:bg-sidebar-row-hover hover:text-sidebar-foreground disabled:cursor-default",
+                            sidebarRowRadiusClassName(compactThreadCards),
+                          )}
                         >
                           <PlusIcon aria-hidden className="size-4 shrink-0" />
                           {olderSettledShelf.loading
