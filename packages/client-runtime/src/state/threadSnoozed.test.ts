@@ -279,6 +279,7 @@ describe("resolveSnoozePresets", () => {
       "three-hours",
       "tomorrow",
       "next-week",
+      "month",
     ]);
   });
 
@@ -289,9 +290,33 @@ describe("resolveSnoozePresets", () => {
       "three-hours",
       "evening",
       "tomorrow",
+      "month",
     ]);
     const tomorrow = new Date(presets.find((preset) => preset.id === "tomorrow")!.snoozedUntil);
     expect(tomorrow.getDay()).toBe(1);
+  });
+
+  it("wakes in a month on the same day at 9:00, clamped to a shorter month's last day", () => {
+    const wakeOf = (now: Date) => {
+      const wake = new Date(
+        resolveSnoozePresets(now).find((preset) => preset.id === "month")!.snoozedUntil,
+      );
+      return [wake.getFullYear(), wake.getMonth() + 1, wake.getDate(), wake.getHours()];
+    };
+    expect(wakeOf(localDate(2026, 9, 29, 10))).toEqual([2026, 10, 29, 9]);
+    expect(wakeOf(localDate(2026, 9, 30, 22))).toEqual([2026, 10, 30, 9]);
+    expect(wakeOf(localDate(2026, 12, 15, 10))).toEqual([2027, 1, 15, 9]);
+    expect(wakeOf(localDate(2026, 1, 31, 10))).toEqual([2026, 2, 28, 9]);
+    expect(wakeOf(localDate(2028, 1, 31, 10))).toEqual([2028, 2, 29, 9]);
+    expect(wakeOf(localDate(2026, 3, 31, 10))).toEqual([2026, 4, 30, 9]);
+  });
+
+  it("shows the one-month wake's day of month, not just its time", () => {
+    const month = resolveSnoozePresets(localDate(2026, 4, 8, 10)).find(
+      (preset) => preset.id === "month",
+    );
+    // Locale-agnostic: "May 8 9:00 AM", "8. Mai 09:00".
+    expect(month!.whenLabel).toMatch(/\b8\b/);
   });
 });
 

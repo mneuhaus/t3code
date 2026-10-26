@@ -174,7 +174,13 @@ const HOUR_MS = 60 * 60 * 1_000;
 const EVENING_HOUR = 18;
 const MORNING_HOUR = 9;
 
-export type SnoozePresetId = "hour" | "three-hours" | "evening" | "tomorrow" | "next-week";
+export type SnoozePresetId =
+  | "hour"
+  | "three-hours"
+  | "evening"
+  | "tomorrow"
+  | "next-week"
+  | "month";
 
 export interface SnoozePreset {
   readonly id: SnoozePresetId;
@@ -199,6 +205,18 @@ function snoozeAtHour(base: Date, hour: number): Date {
 function addSnoozeDays(base: Date, days: number): Date {
   const next = DateTime.toDate(DateTime.makeUnsafe(base));
   next.setDate(next.getDate() + days);
+  return next;
+}
+
+// Same day one month later, clamped to that month's last day: Jan 31 wakes
+// on Feb 28 (29 in leap years) instead of overflowing into March.
+function addSnoozeMonth(base: Date): Date {
+  const next = DateTime.toDate(DateTime.makeUnsafe(base));
+  const day = next.getDate();
+  next.setDate(1);
+  next.setMonth(next.getMonth() + 1);
+  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+  next.setDate(Math.min(day, lastDay));
   return next;
 }
 
@@ -248,6 +266,14 @@ export function resolveSnoozePresets(now: Date): ReadonlyArray<SnoozePreset> {
       snoozedUntil: nextWeek.toISOString(),
     });
   }
+
+  const inAMonth = snoozeAtHour(addSnoozeMonth(now), MORNING_HOUR);
+  presets.push({
+    id: "month",
+    label: "In 1 month",
+    whenLabel: `${inAMonth.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${snoozeTimeOfDayLabel(inAMonth)}`,
+    snoozedUntil: inAMonth.toISOString(),
+  });
 
   return presets;
 }
