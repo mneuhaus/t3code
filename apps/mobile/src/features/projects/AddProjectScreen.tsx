@@ -25,6 +25,7 @@ import {
   normalizePastedCloneUrl,
   parseAddProjectRemoteSource,
   resolveAddProjectPath,
+  resolveNewProjectsRoot,
   sortAddProjectProviderSources,
   type AddProjectRemoteSource,
 } from "@t3tools/client-runtime/operations/projects";
@@ -388,7 +389,7 @@ function useEnvironmentOptions(): ReadonlyArray<EnvironmentOption> {
         platform: platformFromOs(config?.environment.platform.os ?? null),
         machine: resolveEnvironmentMachineKind(config ?? null),
         baseDirectory: config?.settings.addProjectBaseDirectory ?? null,
-        newProjectsRoot: config?.newProjectsRoot ?? null,
+        newProjectsRoot: resolveNewProjectsRoot(config),
         connectionState: runtime?.connectionState ?? "available",
         connectionError: runtime?.connectionError ?? null,
         connectionErrorTraceId: runtime?.connectionErrorTraceId ?? null,

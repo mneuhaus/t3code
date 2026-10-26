@@ -5,6 +5,7 @@ import type {
   ProjectMutation,
   ProjectId,
   ServerConfig,
+  ServerSettings,
   SourceControlDiscoveryResult,
   SourceControlRepositoryInfo,
 } from "@t3tools/contracts";
@@ -42,6 +43,30 @@ export function availableScratchWorkspaceRoot(
   return canCreateProjectInEnvironment(connectionPhase)
     ? (serverConfig?.scratchWorkspaceRoot ?? null)
     : null;
+}
+
+/**
+ * Name-only project folder: the `projectsDirectory` setting (`~` expanded to the server's home),
+ * else the server default; null when the server cannot start projects from a name. Read it from
+ * live settings so a change shows before the next config snapshot.
+ */
+export function resolveNewProjectsRoot(
+  serverConfig:
+    | (Pick<ServerConfig, "newProjectsRoot" | "homeDirectory"> & {
+        readonly settings: Pick<ServerSettings, "projectsDirectory">;
+      })
+    | null
+    | undefined,
+): string | null {
+  if (serverConfig?.newProjectsRoot === undefined) return null;
+  const location = serverConfig.settings.projectsDirectory;
+  if (location === "") return serverConfig.newProjectsRoot;
+  const home = serverConfig.homeDirectory;
+  if (home === undefined) return location;
+  if (location === "~") return home;
+  return location.startsWith("~/") || location.startsWith("~\\")
+    ? getCloneDestinationPath(home, location.slice(2))
+    : location;
 }
 
 export interface AddProjectRemoteSourceReadinessEntry {

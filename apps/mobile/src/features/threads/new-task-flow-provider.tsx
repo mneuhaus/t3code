@@ -96,7 +96,10 @@ import {
   useRemoteConnectionStatus,
   useSavedRemoteConnections,
 } from "../../state/use-remote-environment-registry";
-import { availableScratchWorkspaceRoot } from "@t3tools/client-runtime/operations/projects";
+import {
+  availableScratchWorkspaceRoot,
+  resolveNewProjectsRoot,
+} from "@t3tools/client-runtime/operations/projects";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
@@ -513,7 +516,7 @@ export function NewTaskFlowProvider(
     ? resolveNewThreadEnvMode({
         projectSettings,
         workspaceRoot: selectedProject?.workspaceRoot ?? null,
-        newProjectsRoot: selectedEnvironmentServerConfig?.newProjectsRoot,
+        newProjectsRoot: resolveNewProjectsRoot(selectedEnvironmentServerConfig),
         projectHasThreads: selectedProjectHasThreads,
       })
     : "local";

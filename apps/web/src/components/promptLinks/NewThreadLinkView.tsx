@@ -1,5 +1,8 @@
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
-import { getCloneDestinationPath } from "@t3tools/client-runtime/operations/projects";
+import {
+  getCloneDestinationPath,
+  resolveNewProjectsRoot,
+} from "@t3tools/client-runtime/operations/projects";
 import {
   findPromptLinkProjects,
   findPromptLinkPullRequestThread,
@@ -198,7 +201,7 @@ export function NewThreadLinkView({ link }: { readonly link: NewThreadLink }) {
   const cloneRepository = async (repository: PromptLinkRepository) => {
     const environmentId = lastActiveEnvironmentId();
     const environment = environments.find((entry) => entry.environmentId === environmentId);
-    const newProjectsRoot = environment?.serverConfig?.newProjectsRoot ?? null;
+    const newProjectsRoot = resolveNewProjectsRoot(environment?.serverConfig);
     if (
       environmentId === null ||
       newProjectsRoot === null ||
